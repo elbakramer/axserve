@@ -1,3 +1,75 @@
+# ==========
+# Qt Related
+# ==========
+
+# automatically generated
+*~
+*.autosave
+*.a
+*.core
+*.moc
+*.o
+*.obj
+*.orig
+*.rej
+*.so
+*.so.*
+*_pch.h.cpp
+*_resource.rc
+*.qm
+.#*
+*.*#
+core
+!core/
+tags
+.DS_Store
+.directory
+*.debug
+Makefile*
+*.prl
+*.app
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+Thumbs.db
+*.res
+*.rc
+/.qmake.cache
+/.qmake.stash
+
+# qtcreator generated files
+*.pro.user*
+CMakeLists.txt.user*
+
+# xemacs temporary files
+*.flc
+
+# Vim temporary files
+.*.swp
+
+# Visual Studio generated files
+*.ib_pdb_index
+*.idb
+*.ilk
+*.pdb
+*.sln
+*.suo
+*.vcproj
+*vcproj.*.*.user
+*.ncb
+*.sdf
+*.opensdf
+*.vcxproj
+*vcxproj.*
+
+# MinGW generated files
+*.Debug
+*.Release
+
+# ==============
+# Python related
+# ==============
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -143,6 +215,9 @@ venv.bak/
 .dmypy.json
 dmypy.json
 
+# ruff
+.ruff_cache/
+
 # Pyre type checker
 .pyre/
 
@@ -152,9 +227,21 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-# PyCharm
-#  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
-#  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
-#  and can be added to the global gitignore or merged into this file.  For a more nuclear
-#  option (not recommended) you can uncomment the following to ignore the entire idea folder.
-#.idea/
+# VsCode
+.vscode/
+
+# ==========
+# Additional
+# ==========
+
+# Binaries
+*.dll
+*.exe
+
+# Build directories
+/build
+/build-*
+
+# Temporarily ignore these files in root
+/*.py*
+/*.bat

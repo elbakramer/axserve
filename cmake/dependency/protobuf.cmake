@@ -1,0 +1,20 @@
+include_guard(GLOBAL)
+
+message(CHECK_START "Checking Protobuf provider")
+
+if (NOT BUILD_SHARED_LIBS)
+    set(Protobuf_USE_STATIC_LIBS ON)
+endif()
+
+if(AXSERVE_PROTOBUF_PROVIDER STREQUAL "module")
+    list(APPEND CMAKE_MESSAGE_INDENT "  ")
+    message(STATUS "Use bundled Protobuf module inside gRPC module")
+    list(POP_BACK CMAKE_MESSAGE_INDENT)
+    message(CHECK_PASS "${AXSERVE_PROTOBUF_PROVIDER}")
+    include("${CMAKE_CURRENT_LIST_DIR}/grpc.cmake")
+elseif(AXSERVE_PROTOBUF_PROVIDER STREQUAL "package")
+    find_package(Protobuf CONFIG REQUIRED)
+    message(CHECK_PASS "${AXSERVE_PROTOBUF_PROVIDER}")
+else()
+    message(CHECK_FAIL "${AXSERVE_PROTOBUF_PROVIDER}")
+endif()

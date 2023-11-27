@@ -1,0 +1,133 @@
+syntax = "proto3";
+
+service Active {
+  rpc Describe(DescribeRequest) returns (DescribeResponse) {}
+  rpc GetProperty(GetPropertyRequest) returns (GetPropertyResponse) {}
+  rpc SetProperty(SetPropertyRequest) returns (SetPropertyResponse) {}
+  rpc InvokeMethod(InvokeMethodRequest) returns (InvokeMethodResponse) {}
+  rpc ConnectEvent(ConnectEventRequest) returns (ConnectEventResponse) {}
+  rpc DisconnectEvent(DisconnectEventRequest) returns (DisconnectEventResponse) {}
+  rpc HandleEvent(stream HandleEventResponse) returns (stream HandleEventRequest) {}
+}
+
+enum RequestContext {
+  DEFAULT = 0;
+  EVENT_CALLBACK = 1;
+}
+
+message DescribeRequest {
+  RequestContext request_context = 1;
+  uint32 callback_event_index = 2;
+}
+
+message PropertyInfo {
+  uint32 index = 1;
+  string name = 2;
+  string property_type = 3;
+}
+
+message ArgumentInfo {
+  string name = 1;
+  string argument_type = 2;
+}
+
+message MethodInfo {
+  uint32 index = 1;
+  string name = 2;
+  repeated ArgumentInfo arguments = 3;
+  string return_type = 4;
+}
+
+message EventInfo {
+  uint32 index = 1;
+  string name = 2;
+  repeated ArgumentInfo arguments = 3;
+}
+
+message DescribeResponse {
+  repeated PropertyInfo properties = 1;
+  repeated MethodInfo methods = 2;
+  repeated EventInfo events = 3;
+}
+
+message VariantList {
+  repeated Variant values = 1;
+}
+
+message VaraintHashMap {
+  map<string, Variant> values = 1;
+}
+
+message Variant {
+  oneof value {
+    bool bool_value = 1;
+    string string_value = 2;
+    int32 int_value = 3;
+    uint32 uint_value = 4;
+    double double_value = 5;
+    VariantList list_value = 6;
+    VaraintHashMap map_value = 7;
+  }
+}
+
+message GetPropertyRequest {
+  uint32 index = 1;
+  RequestContext request_context = 2;
+  uint32 callback_event_index = 3;
+}
+
+message GetPropertyResponse {
+  Variant value = 1;
+}
+
+message SetPropertyRequest {
+  uint32 index = 1;
+  Variant value = 2;
+  RequestContext request_context = 3;
+  uint32 callback_event_index = 4;
+}
+
+message SetPropertyResponse {
+}
+
+message InvokeMethodRequest {
+  uint32 index = 1;
+  repeated Variant arguments = 2;
+  RequestContext request_context = 3;
+  uint32 callback_event_index = 4;
+}
+
+message InvokeMethodResponse {
+  Variant return_value = 1;
+}
+
+message ConnectEventRequest {
+  uint32 index = 1;
+  RequestContext request_context = 2;
+  uint32 callback_event_index = 3;
+}
+
+message ConnectEventResponse {
+  bool successful = 1;
+}
+
+message DisconnectEventRequest {
+  uint32 index = 1;
+  RequestContext request_context = 2;
+  uint32 callback_event_index = 3;
+}
+
+message DisconnectEventResponse {
+  bool successful = 1;
+}
+
+message HandleEventRequest {
+  uint32 index = 1;
+  uint32 id = 2;
+  repeated Variant arguments = 3;
+}
+
+message HandleEventResponse {
+  uint32 index = 1;
+  uint32 id = 2;
+}

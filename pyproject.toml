@@ -1,0 +1,54 @@
+[tool.poetry]
+name = "axserve"
+version = "0.1.0"
+description = "AxServe python client that provides interfaces of COM or OCX components through a gRPC server."
+authors = ["Yunseong Hwang <kika1492@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/elbakramer/axserve"
+packages = [
+  { include = "axserve", from = "src/python" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+grpcio = "^1.59.3"
+
+[tool.poetry.group.dev.dependencies]
+grpcio-tools = "^1.59.3"
+pre-commit = "^3.5.0"
+
+[tool.poetry.group.test.dependencies]
+pytest = "^7.4.3"
+
+[tool.poetry.group.typing.dependencies]
+mypy = "^1.7.1"
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+extend-select = [
+  "B",    # flake8-bugbear
+  "I",    # isort
+  "PGH",  # pygrep-hooks
+  "RUF",  # Ruff-specific
+  "UP",   # pyupgrade
+]
+
+[tool.ruff.lint.isort]
+force-single-line = true
+lines-between-types = 1
+lines-after-imports = 2
+required-imports = ["from __future__ import annotations"]
+
+[build-system]
+requires = [
+    "poetry-core>=1.0.0",
+    "setuptools",
+    "wheel",
+    "ninja",
+    "cmake>=3.21",
+    "grpcio-tools>=1.59.3",
+]
+build-backend = "poetry.core.masonry.api"

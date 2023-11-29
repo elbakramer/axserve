@@ -36,6 +36,7 @@ class AxServeProperty:
     ):
         self._obj = obj
         self._info = info
+        self._method: Optional[AxServeMethod] = None
 
     def __set_name__(self, owner, name):
         pass
@@ -58,6 +59,11 @@ class AxServeProperty:
         response = obj._stub.SetProperty(request)
         response = typing.cast(active_pb2.SetPropertyResponse, response)
         assert response is not None
+
+    def __call__(self, *args, **kwargs):
+        if self._method:
+            return self._method(*args, **kwargs)
+        raise NotImplementedError()
 
 
 class AxServeMethod:
@@ -152,18 +158,21 @@ class AxServeEventLoop:
     def __init__(self, obj: AxServeObject):
         self._obj = obj
         self._return_code = 0
+        self._lock = threading.RLock()
         self._is_exitting = False
         self._is_running = False
 
     @contextlib.contextmanager
     def _create_exec_context(self):
-        self._is_exitting = False
-        self._is_running = True
+        with self._lock:
+            self._is_exitting = False
+            self._is_running = True
         try:
             yield
         finally:
-            self._is_exitting = False
-            self._is_running = False
+            with self._lock:
+                self._is_exitting = False
+                self._is_running = False
 
     @contextlib.contextmanager
     def _create_handle_event_context(self, handle_event: active_pb2.HandleEventRequest):
@@ -182,14 +191,9 @@ class AxServeEventLoop:
     def exec(self) -> int:
         with self._create_exec_context():
             if not self._obj._handle_event_requests:
-                if (
-                    not self._obj._handle_event_response_queue
-                    or self._obj._handle_event_response_queue.closed()
-                ):
+                if not self._obj._handle_event_response_queue or self._obj._handle_event_response_queue.closed():
                     self._obj._handle_event_response_queue = IterableQueue()
-                self._obj._handle_event_requests = self._obj._stub.HandleEvent(
-                    self._obj._handle_event_response_queue
-                )
+                self._obj._handle_event_requests = self._obj._stub.HandleEvent(self._obj._handle_event_response_queue)
 
             handle_events = typing.cast(
                 Iterator[active_pb2.HandleEventRequest],
@@ -202,12 +206,9 @@ class AxServeEventLoop:
                         args = [ValueFromVariant(arg) for arg in handle_event.arguments]
                         self._obj._events_list[handle_event.index](*args)
             except grpc.RpcError as exc:
-                if not (
-                    self._is_exitting
-                    and isinstance(exc, grpc.Call)
-                    and exc.code() == grpc.StatusCode.CANCELLED
-                ):
+                if not (self._is_exitting and isinstance(exc, grpc.Call) and exc.code() == grpc.StatusCode.CANCELLED):
                     raise exc
+
         return self._return_code
 
     def is_running(self) -> bool:
@@ -222,14 +223,17 @@ class AxServeEventLoop:
                 condition.notify_all()
 
     def exit(self, return_code: int = 0) -> None:
-        self._return_code = return_code
-        self._is_exitting = True
+        with self._lock:
+            if not self._is_running:
+                return
+            if self._is_exitting:
+                return
+            self._is_exitting = True
+            self._return_code = return_code
         if self._obj._handle_event_response_queue:
             self._obj._handle_event_response_queue.close()
-        elif self._obj._handle_event_requests:
-            handle_events = typing.cast(
-                grpc.RpcContext, self._obj._handle_event_requests
-            )
+        if self._obj._handle_event_requests:
+            handle_events = typing.cast(grpc.RpcContext, self._obj._handle_event_requests)
             handle_events.cancel()
 
     def quit(self) -> None:
@@ -260,83 +264,95 @@ class AxServeObject:
         thread_pool_executor: Optional[ThreadPoolExecutor] = None,
         start_event_loop: bool = True,
     ):
-        self.__dict__["_properties_dict"] = {}
-        self.__dict__["_methods_dict"] = {}
-        self.__dict__["_events_dict"] = {}
-        self._thread_local = threading.local()
-        self._thread_local._handle_event_context_stack = []
-        self._server_process: Optional[AxServeServerProcess] = None
-        self._channel: Optional[grpc.Channel] = None
-        if channel_ready_timeout is None:
-            channel_ready_timeout = 10
-        if isinstance(channel, str):
-            try:
-                pywintypes.IID(channel)
-            except pywintypes.com_error:
-                address = channel
-                channel = grpc.insecure_channel(address)
-                self._channel = channel
+        try:
+            self.__dict__["_properties_dict"] = {}
+            self.__dict__["_methods_dict"] = {}
+            self.__dict__["_events_dict"] = {}
+
+            self._thread_local = threading.local()
+            self._thread_local._handle_event_context_stack = []
+
+            self._handle_event_response_queue: Optional[IterableQueue] = None
+            self._handle_event_requests: Optional[Iterator[active_pb2.HandleEventRequest]] = None
+
+            self._event_loop: Optional[AxServeEventLoop] = None
+            self._event_loop_thread: Optional[Thread] = None
+            self._event_loop_future: Optional[Future] = None
+            self._event_loop_exception: Optional[Exception] = None
+
+            self._server_process: Optional[AxServeServerProcess] = None
+            self._channel: Optional[grpc.Channel] = None
+
+            if channel_ready_timeout is None:
+                channel_ready_timeout = 10
+
+            if isinstance(channel, str):
+                try:
+                    pywintypes.IID(channel)
+                except pywintypes.com_error:
+                    address = channel
+                    channel = grpc.insecure_channel(address)
+                    self._channel = channel
+                else:
+                    clsid = channel
+                    port = FindFreePort()
+                    address = f"localhost:{port}"
+                    server_process = AxServeServerProcess(clsid, address)
+                    channel = grpc.insecure_channel(address)
+                    self._server_process = server_process
+                    self._channel = channel
+
+            grpc.channel_ready_future(channel).result(timeout=channel_ready_timeout)
+
+            self._stub = active_pb2_grpc.ActiveStub(channel)
+            request = active_pb2.DescribeRequest()
+            self._set_request_context(request)
+            response = self._stub.Describe(request)
+            response = typing.cast(active_pb2.DescribeResponse, response)
+
+            self._properties_list: list[AxServeProperty] = []
+            self._properties_dict: dict[str, AxServeProperty] = {}
+            self._methods_list: list[AxServeMethod] = []
+            self._methods_dict: dict[str, AxServeMethod] = {}
+            self._events_list: list[AxServeEvent] = []
+            self._events_dict: dict[str, AxServeEvent] = {}
+
+            for info in response.properties:
+                prop = AxServeProperty(self, info)
+                self._properties_list.append(prop)
+                self._properties_dict[info.name] = prop
+            for info in response.methods:
+                method = AxServeMethod(self, info)
+                self._methods_list.append(method)
+                self._methods_dict[info.name] = method
+                if info.name in self._properties_dict:
+                    self._properties_dict[info.name]._method = method
+                else:
+                    setattr(self, info.name, method)
+            for info in response.events:
+                event = AxServeEvent(self, info)
+                self._events_list.append(event)
+                self._events_dict[info.name] = event
+                setattr(self, info.name, event)
+
+            self._handle_event_response_queue = IterableQueue()
+            self._handle_event_requests = self._stub.HandleEvent(self._handle_event_response_queue)
+            self._event_loop = AxServeEventLoop(self)
+
+            if not start_event_loop:
+                pass
+            elif thread_pool_executor:
+                self._event_loop_future = thread_pool_executor.submit(self._event_loop_exec_target)
             else:
-                clsid = channel
-                port = FindFreePort()
-                address = f"localhost:{port}"
-                server_process = AxServeServerProcess(clsid, address)
-                channel = grpc.insecure_channel(address)
-                self._server_process = server_process
-                self._channel = channel
-        grpc.channel_ready_future(channel).result(timeout=channel_ready_timeout)
-        self._stub = active_pb2_grpc.ActiveStub(channel)
-        request = active_pb2.DescribeRequest()
-        self._set_request_context(request)
-        response = self._stub.Describe(request)
-        response = typing.cast(active_pb2.DescribeResponse, response)
-        self._properties_list = []
-        self._properties_dict = {}
-        self._methods_list = []
-        self._methods_dict = {}
-        self._events_list = []
-        self._events_dict = {}
-        for info in response.properties:
-            prop = AxServeProperty(self, info)
-            self._properties_list.append(prop)
-            self._properties_dict[info.name] = prop
-        for info in response.methods:
-            method = AxServeMethod(self, info)
-            self._methods_list.append(method)
-            self._methods_dict[info.name] = method
-            setattr(self, info.name, method)
-        for info in response.events:
-            event = AxServeEvent(self, info)
-            self._events_list.append(event)
-            self._events_dict[info.name] = event
-            setattr(self, info.name, event)
-        self._handle_event_response_queue: Optional[IterableQueue] = None
-        self._handle_event_requests: Optional[
-            Iterator[active_pb2.HandleEventRequest]
-        ] = None
-        self._event_loop: Optional[AxServeEventLoop] = None
-        self._event_loop_thread: Optional[Thread] = None
-        self._event_loop_future: Optional[Future] = None
-        self._event_loop_exception: Optional[Exception] = None
-        atexit.register(self.close)
-        self._handle_event_response_queue = IterableQueue()
-        self._handle_event_requests = self._stub.HandleEvent(
-            self._handle_event_response_queue
-        )
-        self._event_loop = AxServeEventLoop(self)
-        if not start_event_loop:
-            pass
-        elif thread_pool_executor:
-            self._event_loop_future = thread_pool_executor.submit(
-                self._event_loop_exec_target
-            )
+                if not thread_constructor:
+                    thread_constructor = threading.Thread
+                self._event_loop_thread = thread_constructor(target=self._event_loop_exec_target, daemon=True)
+                self._event_loop_thread.start()
+        except Exception:
+            self.close()
+            raise
         else:
-            if not thread_constructor:
-                thread_constructor = threading.Thread
-            self._event_loop_thread = thread_constructor(
-                target=self._event_loop_exec_target
-            )
-            self._event_loop_thread.start()
+            atexit.register(self.close)
 
     def __getattr__(self, name):
         if name in self._properties_dict:
@@ -358,9 +374,7 @@ class AxServeObject:
             self._thread_local._handle_event_context_stack = []
         return self._thread_local._handle_event_context_stack
 
-    def _set_request_context(
-        self, request: AxServeCommonRequest
-    ) -> AxServeCommonRequest:
+    def _set_request_context(self, request: AxServeCommonRequest) -> AxServeCommonRequest:
         event_context_stack = self._get_handle_event_context_stack()
         if event_context_stack:
             callback_event_index = event_context_stack[-1].index
@@ -407,4 +421,3 @@ class AxServeObject:
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
-        return

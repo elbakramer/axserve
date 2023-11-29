@@ -37,10 +37,7 @@ def ListFromVariant(variant: active_pb2.Variant) -> list:
 
 
 def MapFromVariant(variant: active_pb2.Variant) -> dict:
-    return {
-        name: ValueFromVariant(value)
-        for name, value in variant.map_value.values.items()
-    }
+    return {name: ValueFromVariant(value) for name, value in variant.map_value.values.items()}
 
 
 ValueFromVariant_Methods = {
@@ -102,4 +99,4 @@ AnnotationFromTypeName_Annotations = {
 
 
 def AnnotationFromTypeName(type_name: str) -> Any:
-    return AnnotationFromTypeName_Annotations[type_name]
+    return AnnotationFromTypeName_Annotations.get(type_name, inspect.Parameter.empty)

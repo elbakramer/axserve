@@ -9,6 +9,7 @@ from axserve import AxServeObject
 
 def main():
     with grpc.insecure_channel("127.0.0.1:8080") as channel:
+        # channel = "{A1574A0D-6BFA-4BD7-9020-DED88711818D}"
         with AxServeObject(channel) as ax:
             print(ax.GetAPIModulePath())
             print(ax.GetConnectState())

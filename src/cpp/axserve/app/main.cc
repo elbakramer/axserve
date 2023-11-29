@@ -260,22 +260,17 @@ public:
     QStringList nonPosArgs = sliceBeforeDoubleDash(args);
     // check args and install translator if needed
     if (checkTranslateOption(nonPosArgs)) {
-      qDebug() << "translation option found";
       // create translator
       QTranslator *translator = new QTranslator(app);
       // check if installation was successful
       bool successful = false;
       // try loading translator for the current locale
-      qDebug() << "system locale:" << QLocale::system() << "translations path:"
-               << QLibraryInfo::path(QLibraryInfo::TranslationsPath);
       QLocale locale = QLocale::system();
       QString directory =
           ":/i18n" + QLibraryInfo::path(QLibraryInfo::TranslationsPath);
       if (translator->load(locale, "", "", directory)) {
-        qDebug() << "translator loaded";
         // try install translator
         if (QCoreApplication::installTranslator(translator)) {
-          qDebug() << "translator installed";
           // reload parser descriptions after the installation
           initialize();
           // check as successful

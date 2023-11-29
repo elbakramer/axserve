@@ -14,8 +14,8 @@ if(AXSERVE_GRPC_PROVIDER STREQUAL "module")
     set(GRPC_EXTERNAL_NAME "gRPC")
 
     set(GRPC_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/grpc")
-    set(GRPC_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/third_party/grpc")
-    set(GRPC_BINARY_DIR "${GRPC_PREFIX_DIR}/src/${GRPC_EXTERNAL_NAME}-build")
+    set(GRPC_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/3rd/grpc")
+    set(GRPC_BINARY_DIR "${GRPC_PREFIX_DIR}/build")
     
     if(NOT EXISTS "${GRPC_SOURCE_DIR}/CMakeLists.txt")
         set(GRPC_GIT_REPOSITORY "https://github.com/grpc/grpc.git")

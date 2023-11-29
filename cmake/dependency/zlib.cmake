@@ -10,8 +10,8 @@ if(AXSERVE_ZLIB_PROVIDER STREQUAL "module")
     set(ZLIB_EXTERNAL_NAME "ZLIB")
 
     set(ZLIB_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/zlib")
-    set(ZLIB_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/third_party/zlib")
-    set(ZLIB_BINARY_DIR "${ZLIB_PREFIX_DIR}/src/${ZLIB_EXTERNAL_NAME}-build")
+    set(ZLIB_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/3rd/zlib")
+    set(ZLIB_BINARY_DIR "${ZLIB_PREFIX_DIR}/build")
     
     if(NOT EXISTS "${ZLIB_SOURCE_DIR}/CMakeLists.txt")
         set(ZLIB_GIT_REPOSITORY "https://github.com/zlib-ng/zlib-ng.git")

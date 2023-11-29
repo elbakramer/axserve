@@ -17,8 +17,8 @@ if(AXSERVE_QT6_PROVIDER STREQUAL "module")
     set(QT6_EXTERNAL_NAME "Qt6")
 
     set(QT6_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/qt")
-    set(QT6_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/third_party/qt")
-    set(QT6_BINARY_DIR "${QT6_PREFIX_DIR}/src/${QT6_EXTERNAL_NAME}-build")
+    set(QT6_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/3rd/qt")
+    set(QT6_BINARY_DIR "${QT6_PREFIX_DIR}/build")
     
     if(NOT EXISTS "${QT6_SOURCE_DIR}/CMakeLists.txt")
         set(QT6_GIT_REPOSITORY "https://github.com/qt/qt5.git")

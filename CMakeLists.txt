@@ -10,6 +10,7 @@ set(CMAKE_SYSTEM_PROCESSOR "${CMAKE_HOST_SYSTEM_PROCESSOR}" CACHE STRING "Determ
 set(AXSERVE_WIN32_EXECUTABLE "" CACHE STRING "Determines executable's application type, such as GUI OR Console")
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Determines executable's library linking type, such as Shared OR Static")
 set(CMAKE_BUILD_TYPE Debug CACHE STRING "Determines executable's build config type, such as Debug OR Release")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}" CACHE PATH "Determines executable's output directory")
 
 # cache variable for toolchain file
 set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_LIST_DIR}/cmake/toolchain/toolchain-msvc-auto.cmake" CACHE STRING "CMake toolchain file")
@@ -53,7 +54,7 @@ file(GLOB_RECURSE CXX_FILES
     "${CMAKE_CURRENT_LIST_DIR}/src/cpp/*.h.in"
 )
 file(GLOB_RECURSE PROTO_FILES
-    "${CMAKE_CURRENT_LIST_DIR}/src/cpp/*.proto"
+    "${CMAKE_CURRENT_LIST_DIR}/src/proto/*.proto"
 )
 file(GLOB_RECURSE TS_FILES
     "${CMAKE_CURRENT_LIST_DIR}/translations/*.ts"
@@ -110,8 +111,8 @@ if(AXSERVE_DEPENDS)
 
     # directories for super build
     set(AXSERVE_SOURCE_DIR  "${CMAKE_CURRENT_SOURCE_DIR}")
-    set(AXSERVE_PREFIX_DIR  "${CMAKE_CURRENT_BINARY_DIR}/external/axserve")
-    set(AXSERVE_BINARY_DIR  "${AXSERVE_PREFIX_DIR}/src/${AXSERVE_EXTERNAL_NAME}-build")
+    set(AXSERVE_PREFIX_DIR  "${CMAKE_CURRENT_BINARY_DIR}/1st/axserve")
+    set(AXSERVE_BINARY_DIR  "${AXSERVE_PREFIX_DIR}/build")
     set(AXSERVE_INSTALL_DIR "${AXSERVE_PREFIX_DIR}")
 
     # setup cmake command and args
@@ -140,6 +141,7 @@ if(AXSERVE_DEPENDS)
         "-DBUILD_SHARED_LIBS:BOOL=${BUILD_SHARED_LIBS}"
         "-DCMAKE_CXX_STANDARD:STRING=${CMAKE_CXX_STANDARD}"
         "-DCMAKE_CXX_STANDARD_REQUIRED:BOOL=${CMAKE_CXX_STANDARD_REQUIRED}"
+        "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY:PATH=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
         "-DAXSERVE_WIN32_EXECUTABLE:STRING=${AXSERVE_WIN32_EXECUTABLE}"
         "-DAXSERVE_ZLIB_PROVIDER:STRING=package"
         "-DAXSERVE_PROTOBUF_PROVIDER:STRING=package"
@@ -152,16 +154,6 @@ if(AXSERVE_DEPENDS)
         # imported executable from the external project
         set(AXSERVE_EXECUTABLE_WIN32_IMPORTED_LOCATION "${AXSERVE_BINARY_DIR}/${AXSERVE_OUTPUT_NAME_WIN32}.exe")
         set(AXSERVE_EXECUTABLE_CONSOLE_IMPORTED_LOCATION "${AXSERVE_BINARY_DIR}/${AXSERVE_OUTPUT_NAME_CONSOLE}.exe")
-
-        set(AXSERVE_COPY_EXECUTABLE_COMMAND
-            "${AXSERVE_CMAKE_COMMAND}"
-            -E copy
-            -t "${CMAKE_CURRENT_BINARY_DIR}"
-            "${AXSERVE_EXECUTABLE_WIN32_IMPORTED_LOCATION}" &&
-            "${AXSERVE_CMAKE_COMMAND}"
-            -E copy
-            -t "${CMAKE_CURRENT_BINARY_DIR}"
-            "${AXSERVE_EXECUTABLE_CONSOLE_IMPORTED_LOCATION}")
 
         # add imported version of axserve executable
         add_executable(axserve_executable_win32 IMPORTED)
@@ -177,7 +169,7 @@ if(AXSERVE_DEPENDS)
             OUTPUT_NAME "${AXSERVE_OUTPUT_NAME_CONSOLE}"
         )
 
-        set(AXSERVE_IMPORTED_RUNTIME_ARTIFACTS
+        set(AXSERVE_INSTALL_IMPORTED_RUNTIME_ARTIFACTS
             axserve_executable_win32
             axserve_executable_console
         )
@@ -186,11 +178,6 @@ if(AXSERVE_DEPENDS)
 
         # imported executable from the external project
         set(AXSERVE_EXECUTABLE_IMPORTED_LOCATION "${AXSERVE_BINARY_DIR}/${AXSERVE_OUTPUT_NAME}.exe")
-        set(AXSERVE_COPY_EXECUTABLE_COMMAND
-            "${AXSERVE_CMAKE_COMMAND}"
-            -E copy
-            -t "${CMAKE_CURRENT_BINARY_DIR}"
-            "${AXSERVE_EXECUTABLE_IMPORTED_LOCATION}")
 
         # add imported version of axserve executable
         add_executable(axserve_executable IMPORTED)
@@ -199,7 +186,7 @@ if(AXSERVE_DEPENDS)
             WIN32_EXECUTABLE "${AXSERVE_WIN32_EXECUTABLE}"
             OUTPUT_NAME "${AXSERVE_OUTPUT_NAME}"
         )
-        set(AXSERVE_IMPORTED_RUNTIME_ARTIFACTS axserve_executable)
+        set(AXSERVE_INSTALL_IMPORTED_RUNTIME_ARTIFACTS axserve_executable)
 
 
     endif()
@@ -216,14 +203,13 @@ if(AXSERVE_DEPENDS)
         CMAKE_COMMAND "${AXSERVE_CMAKE_COMMAND}"
         CMAKE_CACHE_ARGS ${AXSERVE_CMAKE_CACHE_ARGS}
         BUILD_COMMAND ${AXSERVE_BUILD_COMMAND}
-        COMMAND ${AXSERVE_COPY_EXECUTABLE_COMMAND}
         BUILD_ALWAYS TRUE
         DEPENDS ${AXSERVE_DEPENDS}
     )
 
     # configure install dirs
     include(GNUInstallDirs)
-    install(IMPORTED_RUNTIME_ARTIFACTS ${AXSERVE_IMPORTED_RUNTIME_ARTIFACTS}
+    install(IMPORTED_RUNTIME_ARTIFACTS ${AXSERVE_INSTALL_IMPORTED_RUNTIME_ARTIFACTS}
         BUNDLE DESTINATION .
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
@@ -290,7 +276,7 @@ else()
         "$<BUILD_INTERFACE:${AXSERVE_PROTO_OUTPUT_LOCATION}>"
     )
     set(PROTO_IMPORT_DIRS
-        "${CMAKE_CURRENT_LIST_DIR}/src/cpp/axserve/internal/server/proto"
+        "${CMAKE_CURRENT_LIST_DIR}/src/proto"
     )
     protobuf_generate(
         TARGET axserve_proto

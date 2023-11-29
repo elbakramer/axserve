@@ -238,10 +238,5 @@ cython_debug/
 *.dll
 *.exe
 
-# Build directories
-/build
-/build-*
-
-# Temporarily ignore these files in root
-/*.py*
-/*.bat
+# PyPI Publish
+.pypirc

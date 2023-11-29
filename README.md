@@ -1,10 +1,10 @@
 # Introduction
 
-AxServe is a server program that provides interfaces of COM or OCX components through a gRPC server.
+AxServe is a server program and client interface that provides functionalities of COM or OCX components through a gRPC server.
 
 ## Motivation
 
-There are many ways to integrate COM or OCX components, such as creating native apps or using other libraries or frameworks. But they all had their own strengths and weaknesses.
+There are many ways to integrate COM or OCX components, such as creating native apps or using other libraries or frameworks. But they all have their own strengths and weaknesses.
 
 Options that I had considered so far were:
 
@@ -12,16 +12,16 @@ Library | Module | Based On | Maintainer | Language
 -- | -- | -- | -- | --
 [Win32](https://learn.microsoft.com/en-us/windows/win32/) |   |   | Microsoft | C/C++
 [MFC](https://learn.microsoft.com/en-us/cpp/mfc/mfc-desktop-applications?view=msvc-170) |   |   | Microsoft | C++
-[Qt5](https://doc.qt.io/qt-5/) | [ActiveQt](https://doc.qt.io/qt-5/activeqt-index.html) | Win32 | Qt Group | C++
-[Qt6](https://doc.qt.io/qt-6/) | [ActiveQt](https://doc.qt.io/qt-6/activeqt-index.html) | Win32 | Qt Group | C++
+[Qt5](https://doc.qt.io/qt-5/) | [ActiveQt](https://doc.qt.io/qt-5/activeqt-index.html) | Win32 | [Qt Group](https://www.qt.io/) | C++
+[Qt6](https://doc.qt.io/qt-6/) | [ActiveQt](https://doc.qt.io/qt-6/activeqt-index.html) | Win32 | [Qt Group](https://www.qt.io/) | C++
 [pywin32](https://github.com/mhammond/pywin32) | win32com.client | Win32 | Mark   Hammond | Python
 [pywin32](https://github.com/mhammond/pywin32) | pywin.mfc | MFC | Mark   Hammond | Python
 [PyQt5](https://www.riverbankcomputing.com/software/pyqt/) | PyQt5.QAxContainer | Qt5 | Riverbank Computing | Python
 [PyQt6](https://www.riverbankcomputing.com/software/pyqt/) | PyQt6.QAxContainer | Qt6 | Riverbank Computing | Python
-PySide2 | PySide2.QtAxContainer | Qt5 | Qt Group | Python
-PySide6 | PySide6.QtAxContainer | Qt6 | Qt Group | Python
+[PySide2](https://wiki.qt.io/Qt_for_Python) | PySide2.QtAxContainer | Qt5 | [Qt Group](https://www.qt.io/) | Python
+[PySide6](https://wiki.qt.io/Qt_for_Python) | PySide6.QtAxContainer | Qt6 | [Qt Group](https://www.qt.io/) | Python
 
-And I had considered some Pros & Cons of them:
+And Pros & Cons of each of these options that I had experienced while using some of them were as follows:
 
 - Requires build step
     - (-) C/C++ Language options require build step
@@ -46,7 +46,7 @@ And I had considered some Pros & Cons of them:
     - (+) Qt5 Based options support 32bit architecture on windows naturally with prebuilt binaries ([link](https://doc.qt.io/qt-5/windows.html))
     - (-) Qt6 Based options do not provide prebuilt binaries for 32bit architecture on windows ([link](https://doc.qt.io/qt-6/windows.html))
 - Applicability of acquired knowledge across domains
-    - (+) Qt based options can leverage learned skills to create another applications for platforms other than windows
+    - (+) Qt based options can leverage learned skills to create other applications for platforms other than windows
     - (-) Other options may be too platform specific
 - License
     - (-) PyQt Based options require GPLv3 license, unless commercial license is used
@@ -56,14 +56,14 @@ And I had considered some Pros & Cons of them:
 
 My personal goal was to use 32bit COM/OCX feature in python. So based on the analysis and my goal, my final decision was:
 
-- Not to bring the COM/OCX part of dependency to python
-- But make the dependency loose by supporting that using IPC technique with some libraries like gRPC
+- Not to bring the COM/OCX part of dependency to the python side
+- But make the dependency loose by supporting the functionality using an IPC technique with some libraries like gRPC
 - Learn Qt6 and use that for development
 - Build Qt6 for 32bit architecture support on my own
 - Build single server executable and use that in python
 - More specificaly, run the server executable using `subprocess` and connect to that using `grpcio`
 
-And here is the outcome of the server part.
+And this project is the outcome of those choices.
 
 # Usage
 
@@ -71,13 +71,13 @@ And here is the outcome of the server part.
 
 ### GUI
 
-1. Run the executable by double clicking
-2. Type the required information
+1. Run the executable by double clicking.
+2. Type the required information.
     - CLSID required to instantiate an Active-X or COM object.
     - Address URI for gRPC server to bind.
-3. Press start button to start server
+3. Press start button to start server.
 
-![axserve](./axserve.png)
+![axserve](https://github.com/elbakramer/axserve/blob/main/axserve.png)
 
 ### Console
 
@@ -87,7 +87,7 @@ If built with console support, give required options to run the server as cli ar
 .\axserve-x86-console-debug.exe --clsid="{A1574A0D-6BFA-4BD7-9020-DED88711818D}" --address="localhost:8080" --no-gui
 ```
 
-That `--no-gui` option makes the application run without GUI components. This can be useful for cases when embedding this executable in other things. FYI, technically it's not a pure non-gui application but just tries to hide or not to show the windows created internally.
+That `--no-gui` option makes the application run without GUI components. This can be useful for cases like embedding this executable in other things. FYI, technically it's not a pure non-gui application but just tries to hide or not to show the windows created internally.
 
 The GUI version also accepts the same cli arguments. But note that it cannot print any messages since there is no console attached. FYI, the GUI version uses message boxes for that instead when needed (like printing errors).
 
@@ -95,11 +95,11 @@ The GUI version also accepts the same cli arguments. But note that it cannot pri
 
 Just started working on a Python client.
 
-Check the following codes for more information, until the documentation is added:
+Check the following codes for more information, until relevant documentations are added:
 
-- Python client implementation [axserve.py](./src/python/axserve/axserve.py)
-- Example usage of it [example_client.py](./src/python/example_client.py) 
-- Proto file for gRPC service definition [active.proto](./src/cpp/axserve/internal/server/proto/active.proto)
+- Python client implementation [stub.py](https://github.com/elbakramer/axserve/blob/main/src/python/axserve/client/stub.py)
+- Example usage of it [example_client.py](https://github.com/elbakramer/axserve/blob/main/src/python/example_client.py) 
+- Proto file for gRPC service definition [active.proto](https://github.com/elbakramer/axserve/blob/main/src/proto/active.proto)
 
 # Building
 

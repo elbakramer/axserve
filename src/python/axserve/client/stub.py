@@ -11,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from threading import Thread
 from typing import Any
 from typing import Callable
+from typing import Iterable
 from typing import Iterator
 from typing import Optional
 from typing import Union
@@ -36,12 +37,16 @@ class AxServeProperty:
     ):
         self._obj = obj
         self._info = info
-        self._method: Optional[AxServeMethod] = None
 
     def __set_name__(self, owner, name):
-        pass
+        assert owner == self._obj
+        assert name == self._info.name
 
-    def __get__(self, obj: AxServeObject, objtype=None):
+    def _get(
+        self,
+        obj: Optional[AxServeObject] = None,
+        objtype: Optional[type] = None,
+    ):
         if obj is None:
             return self
         request = active_pb2.GetPropertyRequest()
@@ -51,7 +56,11 @@ class AxServeProperty:
         response = typing.cast(active_pb2.GetPropertyResponse, response)
         return ValueFromVariant(response.value)
 
-    def __set__(self, obj: AxServeObject, value: Any):
+    def _set(
+        self,
+        obj: AxServeObject,
+        value: Any,
+    ):
         request = active_pb2.SetPropertyRequest()
         request.index = self._info.index
         ValueToVariant(value, request.value)
@@ -60,10 +69,25 @@ class AxServeProperty:
         response = typing.cast(active_pb2.SetPropertyResponse, response)
         assert response is not None
 
-    def __call__(self, *args, **kwargs):
-        if self._method:
-            return self._method(*args, **kwargs)
-        raise NotImplementedError()
+    def get(self):
+        return self._get(self._obj)
+
+    def set(self, value):
+        return self._set(self._obj, value)
+
+    def __get__(
+        self,
+        obj: Optional[AxServeObject] = None,
+        objtype: Optional[type] = None,
+    ):
+        return self._get(obj, objtype)
+
+    def __set__(
+        self,
+        obj: AxServeObject,
+        value: Any,
+    ):
+        return self._set(obj, value)
 
 
 class AxServeMethod:
@@ -88,7 +112,7 @@ class AxServeMethod:
         self.__name__ = self._info.name
         self.__signature__ = self._sig
 
-    def __call__(self, *args, **kwargs):
+    def call(self, *args, **kwargs):
         request = active_pb2.InvokeMethodRequest()
         request.index = self._info.index
         bound_args = self._sig.bind(*args, **kwargs)
@@ -99,6 +123,9 @@ class AxServeMethod:
         response = self._obj._stub.InvokeMethod(request)
         response = typing.cast(active_pb2.InvokeMethodResponse, response)
         return ValueFromVariant(response.return_value)
+
+    def __call__(self, *args, **kwargs):
+        return self.call(*args, **kwargs)
 
 
 class AxServeEvent:
@@ -147,30 +174,95 @@ class AxServeEvent:
                 response = typing.cast(active_pb2.DisconnectEventResponse, response)
                 assert response.successful
 
-    def __call__(self, *args, **kwargs):
+    def call(self, *args, **kwargs):
         with self._handlers_lock:
             handlers = list(self._handlers)
         for handler in handlers:
             handler(*args, **kwargs)
+
+    def __call__(self, *args, **kwargs):
+        return self.call(*args, **kwargs)
+
+
+class AxServeMember:
+    def __init__(self, obj: AxServeObject):
+        self._obj = obj
+        self._prop: Optional[AxServeProperty] = None
+        self._method: Optional[AxServeMethod] = None
+        self._event: Optional[AxServeEvent] = None
+
+    @property
+    def prop(self):
+        return self._prop
+
+    @property
+    def method(self):
+        return self._method
+
+    @property
+    def event(self):
+        return self._event
+
+    def __get__(
+        self,
+        obj: Optional[AxServeObject] = None,
+        objtype: Optional[type] = None,
+    ):
+        if self._prop:
+            return self._prop.__get__(obj, objtype)
+        if self._method:
+            return self._method
+        if self._event:
+            return self._event
+        raise NotImplementedError()
+
+    def __set__(
+        self,
+        obj: AxServeObject,
+        value: Any,
+    ):
+        if self._prop:
+            return self._prop.__set__(obj, value)
+        raise NotImplementedError()
+
+    def call(self, *args, **kwargs):
+        if self._method:
+            return self._method.call(*args, **kwargs)
+        if self._event:
+            return self._event.call(*args, **kwargs)
+        raise NotImplementedError()
+
+    def __call__(self, *args, **kwargs):
+        return self.call(*args, **kwargs)
+
+    def connect(self, handler):
+        if self._event:
+            return self._event.connect(handler)
+        raise NotImplementedError()
+
+    def disconnect(self, handler):
+        if self._event:
+            return self._event.disconnect(handler)
+        raise NotImplementedError()
 
 
 class AxServeEventLoop:
     def __init__(self, obj: AxServeObject):
         self._obj = obj
         self._return_code = 0
-        self._lock = threading.RLock()
+        self._state_lock = threading.RLock()
         self._is_exitting = False
         self._is_running = False
 
     @contextlib.contextmanager
     def _create_exec_context(self):
-        with self._lock:
+        with self._state_lock:
             self._is_exitting = False
             self._is_running = True
         try:
             yield
         finally:
-            with self._lock:
+            with self._state_lock:
                 self._is_exitting = False
                 self._is_running = False
 
@@ -223,7 +315,7 @@ class AxServeEventLoop:
                 condition.notify_all()
 
     def exit(self, return_code: int = 0) -> None:
-        with self._lock:
+        with self._state_lock:
             if not self._is_running:
                 return
             if self._is_exitting:
@@ -235,13 +327,6 @@ class AxServeEventLoop:
         if self._obj._handle_event_requests:
             handle_events = typing.cast(grpc.RpcContext, self._obj._handle_event_requests)
             handle_events.cancel()
-
-    def quit(self) -> None:
-        self.exit()
-
-
-class AxServeLibraryInfo:
-    pass
 
 
 AxServeCommonRequest = Union[
@@ -265,9 +350,8 @@ class AxServeObject:
         start_event_loop: bool = True,
     ):
         try:
+            self.__dict__["_members_dict"] = {}
             self.__dict__["_properties_dict"] = {}
-            self.__dict__["_methods_dict"] = {}
-            self.__dict__["_events_dict"] = {}
 
             self._thread_local = threading.local()
             self._thread_local._handle_event_context_stack = []
@@ -310,6 +394,8 @@ class AxServeObject:
             response = self._stub.Describe(request)
             response = typing.cast(active_pb2.DescribeResponse, response)
 
+            self._members_dict: dict[str, AxServeMember] = {}
+
             self._properties_list: list[AxServeProperty] = []
             self._properties_dict: dict[str, AxServeProperty] = {}
             self._methods_list: list[AxServeMethod] = []
@@ -321,19 +407,23 @@ class AxServeObject:
                 prop = AxServeProperty(self, info)
                 self._properties_list.append(prop)
                 self._properties_dict[info.name] = prop
+                if info.name not in self._members_dict:
+                    self._members_dict[info.name] = AxServeMember(self)
+                self._members_dict[info.name]._prop = prop
             for info in response.methods:
                 method = AxServeMethod(self, info)
                 self._methods_list.append(method)
                 self._methods_dict[info.name] = method
-                if info.name in self._properties_dict:
-                    self._properties_dict[info.name]._method = method
-                else:
-                    setattr(self, info.name, method)
+                if info.name not in self._members_dict:
+                    self._members_dict[info.name] = AxServeMember(self)
+                self._members_dict[info.name]._method = method
             for info in response.events:
                 event = AxServeEvent(self, info)
                 self._events_list.append(event)
                 self._events_dict[info.name] = event
-                setattr(self, info.name, event)
+                if info.name not in self._members_dict:
+                    self._members_dict[info.name] = AxServeMember(self)
+                self._members_dict[info.name]._event = event
 
             self._handle_event_response_queue = IterableQueue()
             self._handle_event_requests = self._stub.HandleEvent(self._handle_event_response_queue)
@@ -355,8 +445,8 @@ class AxServeObject:
             atexit.register(self.close)
 
     def __getattr__(self, name):
-        if name in self._properties_dict:
-            return self._properties_dict[name].__get__(self)
+        if name in self._members_dict:
+            return self._members_dict[name].__get__(self)
         return super().__getattribute__(name)
 
     def __setattr__(self, name, value):
@@ -364,10 +454,15 @@ class AxServeObject:
             return self._properties_dict[name].__set__(self, value)
         return super().__setattr__(name, value)
 
-    def __dir__(self):
-        props = list(self._properties_dict.keys())
+    def __getitem__(self, name) -> AxServeMember:
+        if name in self._members_dict:
+            return self._members_dict[name]
+        return super().__getitem__(name)
+
+    def __dir__(self) -> Iterable[str]:
+        members = list(self._members_dict.keys())
         attrs = super().__dir__()
-        return props + attrs
+        return members + attrs
 
     def _get_handle_event_context_stack(self) -> list[active_pb2.HandleEventRequest]:
         if not hasattr(self._thread_local, "_handle_event_context_stack"):
@@ -401,6 +496,7 @@ class AxServeObject:
             self = None
             raise exc
 
+    @property
     def event_loop(self) -> AxServeEventLoop:
         return self._event_loop
 

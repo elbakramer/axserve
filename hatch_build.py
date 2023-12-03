@@ -20,7 +20,16 @@ class CMakeBuildHook(BuildHookInterfaceWithCheckCommand):
     PLUGIN_NAME = "cmake"
 
     def clean(self, versions: list[str]) -> None:
-        pass
+        builds = self.config.get("builds", [])
+        for build in builds:
+            runtime_output_dir = build.get("runtime-output-dir")
+            if not runtime_output_dir:
+                continue
+            runtime_output_dir = Path(runtime_output_dir)
+            runtime_output_dir = runtime_output_dir.absolute()
+            for filename in runtime_output_dir.iterdir():
+                if filename.suffix == ".exe":
+                    filename.unlink()
 
     def initialize(self, version: str, build_data: dict[str, Any]) -> None:
         builds = self.config.get("builds", [])
@@ -68,6 +77,8 @@ class CMakeBuildHook(BuildHookInterfaceWithCheckCommand):
                     f"-DCMAKE_SYSTEM_PROCESSOR:STRING={system_processor}",
                 ]
             if runtime_output_dir:
+                runtime_output_dir = Path(runtime_output_dir)
+                runtime_output_dir = runtime_output_dir.absolute()
                 cmake_configure_cmd += [
                     f"-DCMAKE_RUNTIME_OUTPUT_DIRECTORY:PATH={runtime_output_dir}",
                 ]
@@ -76,6 +87,8 @@ class CMakeBuildHook(BuildHookInterfaceWithCheckCommand):
                         f"-DCMAKE_RUNTIME_OUTPUT_DIRECTORY_{config.upper()}:PATH={runtime_output_dir}",
                     ]
             if library_output_dir:
+                library_output_dir = Path(library_output_dir)
+                library_output_dir = library_output_dir.absolute()
                 cmake_configure_cmd += [
                     f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY:PATH={library_output_dir}",
                 ]

@@ -18,6 +18,7 @@ const QString AbstractMessageHandler::qtDefaultMessagePattern =
 
 const QString AbstractMessageHandler::appDefaultMessagePattern =
     "%{time yyyy-MM-dd hh:mm:ss.zzz}"
+    " [SERVER]"
     " ["
     "%{if-debug}DEBUG%{endif}"
     "%{if-info}INFO%{endif}"

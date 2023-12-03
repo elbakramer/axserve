@@ -1,5 +1,8 @@
 #include "active_service_request_processor.h"
 
+#include <sstream>
+#include <string>
+
 #include <QtDebug>
 #include <QtLogging>
 
@@ -9,11 +12,32 @@
 #include <QMutexLocker>
 #include <QVariant>
 
+#include <google/protobuf/message.h>
+#include <google/protobuf/util/json_util.h>
+
 #include "handle_event_counter.h"
 #include "util/variant_conversion.h"
 
 using grpc::Status;
 using grpc::StatusCode;
+
+using google::protobuf::Message;
+using google::protobuf::util::JsonPrintOptions;
+using google::protobuf::util::MessageToJsonString;
+
+QDebug &operator<<(QDebug &os, const Message &msg) {
+  std::string s;
+  JsonPrintOptions opts;
+  opts.preserve_proto_field_names = true;
+  absl::Status status = MessageToJsonString(msg, &s, opts);
+  if (!status.ok()) {
+    std::stringstream ss;
+    ss << "Converting message to json string failed.";
+    throw std::runtime_error(ss.str());
+  }
+  os << s.c_str();
+  return os;
+}
 
 ActiveServiceRequestProcessor::ActiveServiceRequestProcessor(
     QAxWidget *control, QObject *parent
@@ -279,7 +303,9 @@ void ActiveServiceRequestProcessor::process_request(
     QVariantToProtoVariant(qt_value, proto_value);
     return request->reactor()->Finish(Status::OK);
   } else {
-    Status status(StatusCode::UNKNOWN, "Failed to InvokeMethod");
+    Status status(
+        StatusCode::OK, "Returning null due to invalid return value."
+    );
     return request->reactor()->Finish(status);
   }
 }

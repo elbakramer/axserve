@@ -64,5 +64,6 @@ if(VS_VSWHERE_FULL_PATH)
 endif()
 
 if(VS_INSTALLATION_PATH)
+    message(STATUS "Found Visual Studio: ${VS_INSTALLATION_PATH}")
     set(VS_FOUND TRUE)
 endif()

@@ -10,16 +10,16 @@ Options that I had considered so far were:
 
 Library | Module | Based On | Maintainer | Language
 -- | -- | -- | -- | --
-[Win32](https://learn.microsoft.com/en-us/windows/win32/) |   |   | Microsoft | C/C++
-[MFC](https://learn.microsoft.com/en-us/cpp/mfc/mfc-desktop-applications?view=msvc-170) |   |   | Microsoft | C++
+[Win32](https://learn.microsoft.com/en-us/windows/win32/) |   |   | [Microsoft](https://www.microsoft.com/) | C/C++
+[MFC](https://learn.microsoft.com/en-us/cpp/mfc/mfc-desktop-applications?view=msvc-170) |   |   | [Microsoft](https://www.microsoft.com/) | C++
 [Qt5](https://doc.qt.io/qt-5/) | [ActiveQt](https://doc.qt.io/qt-5/activeqt-index.html) | Win32 | [Qt Group](https://www.qt.io/) | C++
 [Qt6](https://doc.qt.io/qt-6/) | [ActiveQt](https://doc.qt.io/qt-6/activeqt-index.html) | Win32 | [Qt Group](https://www.qt.io/) | C++
-[pywin32](https://github.com/mhammond/pywin32) | win32com.client | Win32 | Mark   Hammond | Python
-[pywin32](https://github.com/mhammond/pywin32) | pywin.mfc | MFC | Mark   Hammond | Python
-[PyQt5](https://www.riverbankcomputing.com/software/pyqt/) | PyQt5.QAxContainer | Qt5 | Riverbank Computing | Python
-[PyQt6](https://www.riverbankcomputing.com/software/pyqt/) | PyQt6.QAxContainer | Qt6 | Riverbank Computing | Python
-[PySide2](https://wiki.qt.io/Qt_for_Python) | PySide2.QtAxContainer | Qt5 | [Qt Group](https://www.qt.io/) | Python
-[PySide6](https://wiki.qt.io/Qt_for_Python) | PySide6.QtAxContainer | Qt6 | [Qt Group](https://www.qt.io/) | Python
+[pywin32](https://github.com/mhammond/pywin32) | [win32com.client](https://github.com/mhammond/pywin32/tree/main/com/win32com/client) | Win32 | [Mark Hammond](https://github.com/mhammond) | Python
+[pywin32](https://github.com/mhammond/pywin32) | [pywin.mfc.activex](https://github.com/mhammond/pywin32/blob/main/Pythonwin/pywin/mfc/activex.py) | MFC | [Mark Hammond](https://github.com/mhammond) | Python
+[PyQt5](https://www.riverbankcomputing.com/software/pyqt/) | [PyQt5.QAxContainer](https://www.riverbankcomputing.com/static/Docs/PyQt5/api/qaxcontainer/qaxcontainer-module.html) | Qt5 | [Riverbank Computing](https://www.riverbankcomputing.com/) | Python
+[PyQt6](https://www.riverbankcomputing.com/software/pyqt/) | [PyQt6.QAxContainer](https://www.riverbankcomputing.com/static/Docs/PyQt6/api/qaxcontainer/qaxcontainer-module.html) | Qt6 | [Riverbank Computing](https://www.riverbankcomputing.com/) | Python
+[PySide2](https://doc.qt.io/qtforpython-5/) | [PySide2.QtAxContainer](https://doc.qt.io/qt-5/activeqt-container.html) | Qt5 | [Qt Group](https://www.qt.io/) | Python
+[PySide6](https://doc.qt.io/qtforpython-6/) | [PySide6.QtAxContainer](https://doc.qt.io/qt-6/activeqt-container.html) | Qt6 | [Qt Group](https://www.qt.io/) | Python
 
 And Pros & Cons of each of these options that I had experienced while using some of them were as follows:
 
@@ -61,7 +61,7 @@ My personal goal was to use 32bit COM/OCX feature in python. So based on the ana
 - Learn Qt6 and use that for development
 - Build Qt6 for 32bit architecture support on my own
 - Build single server executable and use that in python
-- More specificaly, run the server executable using `subprocess` and connect to that using `grpcio`
+- More specifically, run the server executable using `subprocess` and connect to that using `grpcio`
 
 And this project is the outcome of those choices.
 
@@ -98,7 +98,7 @@ Just started working on a Python client.
 Check the following codes for more information, until relevant documentations are added:
 
 - Python client implementation [stub.py](https://github.com/elbakramer/axserve/blob/main/src/python/axserve/client/stub.py)
-- Example usage of it [example_client.py](https://github.com/elbakramer/axserve/blob/main/src/python/example_client.py) 
+- Example usage of it [example_client.py](https://github.com/elbakramer/axserve/blob/main/src/python/example_client.py)
 - Proto file for gRPC service definition [active.proto](https://github.com/elbakramer/axserve/blob/main/src/proto/active.proto)
 
 # Building
@@ -110,7 +110,7 @@ Check the following codes for more information, until relevant documentations ar
 https://learn.microsoft.com/en-us/visualstudio/install/use-command-line-parameters-to-install-visual-studio?view=vs-2022
 
 ```
-vs_buildtools.exe 
+vs_buildtools.exe
     --add "Microsoft.VisualStudio.Workload.VCTools"
     --add "Microsoft.VisualStudio.Component.VC.Tools.x86.x64"
     --add "Microsoft.VisualStudio.Component.VC.CMake.Project"
@@ -127,6 +127,14 @@ https://chocolatey.org/install
 
 ```
 Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+```
+
+### Install GIt
+
+https://git-scm.com/
+
+```
+choco install git.install
 ```
 
 ### Install NASM

@@ -9,17 +9,22 @@ endif()
 if(AXSERVE_ZLIB_PROVIDER STREQUAL "module")
     set(ZLIB_EXTERNAL_NAME "ZLIB")
 
-    set(ZLIB_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/zlib")
-    set(ZLIB_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/3rd/zlib")
-    set(ZLIB_BINARY_DIR "${ZLIB_PREFIX_DIR}/build")
-    
+    set(ZLIB_SOURCE_DIR   "${CMAKE_CURRENT_SOURCE_DIR}/third_party/zlib")
+    set(ZLIB_PREFIX_DIR   "${CMAKE_CURRENT_BINARY_DIR}/zlib")
+    set(ZLIB_BINARY_DIR   "${CMAKE_CURRENT_BINARY_DIR}/zlib-build")
+    set(ZLIB_INSTALL_DIR  "${ZLIB_PREFIX_DIR}")
+    set(ZLIB_TMP_DIR      "${ZLIB_PREFIX_DIR}/tmp")
+    set(ZLIB_STAMP_DIR    "${ZLIB_TMP_DIR}/stamp")
+    set(ZLIB_LOG_DIR      "${ZLIB_TMP_DIR}/log")
+    set(ZLIB_DOWNLOAD_DIR "${ZLIB_TMP_DIR}/download")
+
     if(NOT EXISTS "${ZLIB_SOURCE_DIR}/CMakeLists.txt")
         set(ZLIB_GIT_REPOSITORY "https://github.com/zlib-ng/zlib-ng.git")
-        set(ZLIB_GIT_TAG "2.1.4")
+        set(ZLIB_GIT_TAG "2.1.5")
     endif()
 
     set(ZLIB_CMAKE_COMMAND "${CMAKE_COMMAND}")
-    
+
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         set(ZLIB_CMAKE_ARGS
             "-DCMAKE_SYSTEM_NAME:STRING=${CMAKE_SYSTEM_NAME}"
@@ -30,8 +35,12 @@ if(AXSERVE_ZLIB_PROVIDER STREQUAL "module")
             "${ZLIB_CMAKE_COMMAND}" ${ZLIB_CMAKE_ARGS}
             "--build" "${ZLIB_BINARY_DIR}"
             "--parallel")
+        set(ZLIB_PATCH_COMMAND
+            git restore * &&
+            git apply --ignore-whitespace "${CMAKE_CURRENT_LIST_DIR}/../../patches/zlib-ng-2.1.5.patch")
     endif()
 
+    include("${CMAKE_CURRENT_LIST_DIR}/googletest.cmake")
     set(ZLIB_CMAKE_CACHE_ARGS
         "-DCMAKE_INSTALL_PREFIX:PATH=${ZLIB_PREFIX_DIR}"
         "-DCMAKE_PREFIX_PATH:PATH=${CMAKE_PREFIX_PATH}"
@@ -45,22 +54,34 @@ if(AXSERVE_ZLIB_PROVIDER STREQUAL "module")
         "-DCMAKE_CXX_STANDARD_REQUIRED:BOOL=${CMAKE_CXX_STANDARD_REQUIRED}"
         "-DZLIB_COMPAT:BOOL=ON"
     )
+    set(ZLIB_DEPENDS "")
+    if(AXSERVE_GTEST_PROVIDER STREQUAL "module")
+        list(APPEND ZLIB_DEPENDS GTest)
+    endif()
 
     include(ExternalProject)
     ExternalProject_Add("${ZLIB_EXTERNAL_NAME}"
         PREFIX "${ZLIB_PREFIX_DIR}"
+        TMP_DIR "${ZLIB_TMP_DIR}"
+        STAMP_DIR "${ZLIB_STAMP_DIR}"
+        LOG_DIR "${ZLIB_LOG_DIR}"
+        DOWNLOAD_DIR "${ZLIB_DOWNLOAD_DIR}"
         SOURCE_DIR "${ZLIB_SOURCE_DIR}"
         BINARY_DIR "${ZLIB_BINARY_DIR}"
-        INSTALL_DIR "${ZLIB_PREFIX_DIR}"
+        INSTALL_DIR "${ZLIB_INSTALL_DIR}"
         GIT_REPOSITORY "${ZLIB_GIT_REPOSITORY}"
         GIT_TAG "${ZLIB_GIT_TAG}"
         CMAKE_COMMAND "${ZLIB_CMAKE_COMMAND}"
         CMAKE_ARGS ${ZLIB_CMAKE_ARGS}
         CMAKE_CACHE_ARGS ${ZLIB_CMAKE_CACHE_ARGS}
         BUILD_COMMAND ${ZLIB_BUILD_COMMAND}
+        PATCH_COMMAND ${ZLIB_PATCH_COMMAND}
+        DEPENDS ${ZLIB_DEPENDS}
+        LOG_CONFIGURE TRUE
+        LOG_BUILD TRUE
     )
 
-    ExternalProject_Get_Property(ZLIB INSTALL_DIR)
+    ExternalProject_Get_Property("${ZLIB_EXTERNAL_NAME}" INSTALL_DIR)
     set(ZLIB_INSTALL_DIR "${INSTALL_DIR}")
     set(ZLIB_ROOT "${ZLIB_INSTALL_DIR}")
     list(APPEND CMAKE_PREFIX_PATH "${ZLIB_INSTALL_DIR}")

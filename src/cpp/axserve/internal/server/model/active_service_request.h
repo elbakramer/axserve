@@ -1,3 +1,21 @@
+/*
+ * Copyright 2023 Yunseong Hwang
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 #ifndef ACTIVE_SERVICE_REQUEST_H
 #define ACTIVE_SERVICE_REQUEST_H
 
@@ -32,7 +50,9 @@ public:
       ServerUnaryReactor *reactor, RequestContext request_context,
       uint32_t callback_event_index
   )
-      : m_type(type), m_context(context), m_reactor(reactor),
+      : m_type(type),
+        m_context(context),
+        m_reactor(reactor),
         m_request_context(request_context),
         m_callback_event_index(callback_event_index) {}
 
@@ -60,7 +80,8 @@ public:
       : ActiveServiceRequest(
             type, context, reactor, request_context, callback_event_index
         ),
-        m_request(request), m_response(response) {}
+        m_request(request),
+        m_response(response) {}
 
   const Request *request() const { return m_request; }
   Response *response() const { return m_response; }

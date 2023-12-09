@@ -1,8 +1,6 @@
 [build-system]
 requires = [
   "hatchling",
-  "cmake",
-  "ninja",
   "grpcio-tools",
 ]
 build-backend = "hatchling.build"
@@ -13,7 +11,7 @@ dynamic = ["version"]
 description = "AxServe python client that provides interfaces of COM or OCX components through a gRPC server."
 readme = "README.md"
 requires-python = ">=3.8.1"
-license = "MIT OR Apache-2.0 OR GPL-3.0-or-later"
+license = "Apache-2.0"
 keywords = ["activex", "com", "ocx", "windows", "grpc", "qt6", "cpp", "python"]
 authors = [
   { name = "Yunseong Hwang", email = "kika1492@gmail.com" },
@@ -23,9 +21,9 @@ maintainers = [
 ]
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",
-  "License :: OSI Approved :: MIT License",
   "License :: OSI Approved :: Apache Software License",
-  "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: Microsoft :: Windows :: Windows 11",
   "Programming Language :: C++",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3.8",
@@ -34,15 +32,12 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
-  "Operating System :: Microsoft :: Windows",
-  "Operating System :: Microsoft :: Windows :: Windows 11",
   "Environment :: Console",
   "Environment :: X11 Applications :: Qt",
 ]
 dependencies = [
-  "grpcio>=1.59.3",
-  "pywin32>=306",
-  "wrapt>=1.16.0",
+  "grpcio>=1.60.0",
+  "pywin32>=306; platform_system == 'Windows'",
 ]
 
 [project.urls]
@@ -91,6 +86,7 @@ marker = "platform_system == 'Windows' and (platform_machine == 'AMD64' or platf
 dependencies = [
   "coverage[toml]>=6.5",
   "pytest",
+  "pytest-asyncio",
 ]
 
 [tool.hatch.envs.default.scripts]
@@ -130,6 +126,12 @@ fmt = [
 all = [
   "style",
   "typing",
+]
+
+[tool.codespell]
+skip = "third_party"
+ignore-words-list = [
+  "doubleclick"
 ]
 
 [tool.black]
@@ -196,8 +198,24 @@ ban-relative-imports = "all"
 # Tests can use magic values, assertions, and relative imports
 "tests/**/*" = ["PLR2004", "S101", "TID252"]
 
+[tool.ruff.lint.pyupgrade]
+# Preserve types, even if a file imports `from __future__ import annotations`.
+keep-runtime-typing = true
+
+[tool.mypy]
+files = [
+  "src/python/axserve",
+  "tests",
+]
+exclude = [
+    "_pb2\\.py$",
+    "_pb2\\.pyi$",
+    "_pb2_grpc\\.py$",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+asyncio_mode = "auto"
 
 [tool.coverage.run]
 source_pkgs = ["axserve", "tests"]

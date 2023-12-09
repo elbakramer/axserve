@@ -1,9 +1,18 @@
+[submodule "third_party/googletest"]
+	path = third_party/googletest
+	url = https://github.com/google/googletest.git
 [submodule "third_party/zlib"]
 	path = third_party/zlib
 	url = https://github.com/zlib-ng/zlib-ng.git
+[submodule "third_party/abseil-cpp"]
+	path = third_party/abseil-cpp
+	url = https://github.com/abseil/abseil-cpp.git
+[submodule "third_party/protobuf"]
+	path = third_party/protobuf
+	url = https://github.com/protocolbuffers/protobuf.git
 [submodule "third_party/grpc"]
 	path = third_party/grpc
 	url = https://github.com/grpc/grpc.git
 [submodule "third_party/qt"]
 	path = third_party/qt
-	url = https://github.com/qt/qt5.git
+	url = https://code.qt.io/qt/qt5.git

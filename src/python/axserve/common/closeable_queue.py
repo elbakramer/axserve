@@ -1,3 +1,19 @@
+# Copyright 2023 Yunseong Hwang
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 from queue import Empty
@@ -50,7 +66,7 @@ class CloseableQueue(Queue[T], Closeable):
                             raise Full
                         self.not_full.wait(remaining)
             self._put(item)
-            self.unfinished_tasks += 1  # pylint: disable=no-member
+            self.unfinished_tasks += 1
             self.not_empty.notify()
 
     def get(
@@ -59,23 +75,23 @@ class CloseableQueue(Queue[T], Closeable):
         timeout: Optional[float] = None,
     ) -> T:
         with self.not_empty:
-            if self._closed and not self._qsize():
-                raise Closed
             if not block:
                 if not self._qsize():
                     raise Empty
             elif timeout is None:
-                while not self._qsize():
+                while not self._closed and not self._qsize():
                     self.not_empty.wait()
             elif timeout < 0:
                 raise ValueError("'timeout' must be a non-negative number")
             else:
                 endtime = time() + timeout
-                while not self._qsize():
+                while not self._closed and not self._qsize():
                     remaining = endtime - time()
                     if remaining <= 0.0:
                         raise Empty
                     self.not_empty.wait(remaining)
+            if self._closed and not self._qsize():
+                raise Closed
             item = self._get()
             self.not_full.notify()
             return item

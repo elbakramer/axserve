@@ -3,7 +3,7 @@ include_guard(GLOBAL)
 message(CHECK_START "Checking Qt6 provider")
 
 set(QT6_COMPONENTS Widgets Network AxContainer LinguistTools)
-set(QT6_SUBMODULES qtbase qtactiveqt qttools)
+set(QT6_SUBMODULES qtbase qtactiveqt qttools qtrepotools)
 
 set(QT6_CMAKE_CROSSCOMPILING "${CMAKE_CROSSCOMPILING}")
 if(QT6_CMAKE_CROSSCOMPILING
@@ -16,13 +16,18 @@ endif()
 if(AXSERVE_QT6_PROVIDER STREQUAL "module")
     set(QT6_EXTERNAL_NAME "Qt6")
 
-    set(QT6_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/qt")
-    set(QT6_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/3rd/qt")
-    set(QT6_BINARY_DIR "${QT6_PREFIX_DIR}/build")
-    
+    set(QT6_SOURCE_DIR   "${CMAKE_CURRENT_SOURCE_DIR}/third_party/qt")
+    set(QT6_PREFIX_DIR   "${CMAKE_CURRENT_BINARY_DIR}/qt")
+    set(QT6_BINARY_DIR   "${CMAKE_CURRENT_BINARY_DIR}/qt-build")
+    set(QT6_INSTALL_DIR  "${QT6_PREFIX_DIR}")
+    set(QT6_TMP_DIR      "${QT6_PREFIX_DIR}/tmp")
+    set(QT6_STAMP_DIR    "${QT6_TMP_DIR}/stamp")
+    set(QT6_LOG_DIR      "${QT6_TMP_DIR}/log")
+    set(QT6_DOWNLOAD_DIR "${QT6_TMP_DIR}/download")
+
     if(NOT EXISTS "${QT6_SOURCE_DIR}/CMakeLists.txt")
-        set(QT6_GIT_REPOSITORY "https://github.com/qt/qt5.git")
-        set(QT6_GIT_TAG "v6.6.0")
+        set(QT6_GIT_REPOSITORY "https://code.qt.io/qt/qt5.git")
+        set(QT6_GIT_TAG "v6.6.1")
         set(QT6_GIT_SUBMODULES ${QT6_SUBMODULES})
     endif()
 
@@ -40,7 +45,7 @@ if(AXSERVE_QT6_PROVIDER STREQUAL "module")
             "--build" "${QT6_BINARY_DIR}"
             "--parallel")
         set(QT6_INSTALL_COMMAND
-            "${QT6_CMAKE_COMMAND}"
+            "${QT6_CMAKE_COMMAND}" ${QT6_CMAKE_ARGS}
             "--install" "${QT6_BINARY_DIR}")
     endif()
 
@@ -65,23 +70,25 @@ if(AXSERVE_QT6_PROVIDER STREQUAL "module")
     endif()
     set(QT6_DEPENDS "")
     if(AXSERVE_ZLIB_PROVIDER STREQUAL "module")
-        list(APPEND QT6_CMAKE_CACHE_ARGS
-            "-DZLIB_ROOT:PATH=${ZLIB_ROOT}"
-        )
         list(APPEND QT6_DEPENDS ZLIB)
     endif()
 
     include(ExternalProject)
     ExternalProject_Add("${QT6_EXTERNAL_NAME}"
         PREFIX "${QT6_PREFIX_DIR}"
+        TMP_DIR "${QT6_TMP_DIR}"
+        STAMP_DIR "${QT6_STAMP_DIR}"
+        LOG_DIR "${QT6_LOG_DIR}"
+        DOWNLOAD_DIR "${QT6_DOWNLOAD_DIR}"
         SOURCE_DIR "${QT6_SOURCE_DIR}"
         BINARY_DIR "${QT6_BINARY_DIR}"
-        INSTALL_DIR "${QT6_PREFIX_DIR}"
+        INSTALL_DIR "${QT6_INSTALL_DIR}"
         GIT_REPOSITORY "${QT6_GIT_REPOSITORY}"
         GIT_TAG "${QT6_GIT_TAG}"
         GIT_SUBMODULES ${QT6_GIT_SUBMODULES}
         GIT_SUBMODULES_RECURSE TRUE
         GIT_SHALLOW TRUE
+        GIT_PROGRESS TRUE
         CMAKE_COMMAND "${QT6_CMAKE_COMMAND}"
         CMAKE_GENERATOR "${QT6_CMAKE_GENERATOR}"
         CMAKE_ARGS ${QT6_CMAKE_ARGS}
@@ -89,9 +96,11 @@ if(AXSERVE_QT6_PROVIDER STREQUAL "module")
         BUILD_COMMAND ${QT6_BUILD_COMMAND}
         INSTALL_COMMAND ${QT6_INSTALL_COMMAND}
         DEPENDS ${QT6_DEPENDS}
+        LOG_CONFIGURE TRUE
+        LOG_BUILD TRUE
     )
 
-    ExternalProject_Get_Property(Qt6 INSTALL_DIR)
+    ExternalProject_Get_Property("${QT6_EXTERNAL_NAME}" INSTALL_DIR)
     set(QT6_INSTALL_DIR "${INSTALL_DIR}")
     list(APPEND CMAKE_PREFIX_PATH "${QT6_INSTALL_DIR}")
 

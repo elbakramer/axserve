@@ -1,3 +1,19 @@
+# Copyright 2023 Yunseong Hwang
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import atexit
@@ -39,8 +55,10 @@ class AxServeProperty:
         self._info = info
 
     def __set_name__(self, owner, name):
-        assert owner == self._obj
-        assert name == self._info.name
+        if owner != self._obj:
+            raise ValueError("Given owner is different with the object instance")
+        if name != self._info.name:
+            raise ValueError("Given name is different with the info's name")
 
     def _get(
         self,
@@ -67,7 +85,7 @@ class AxServeProperty:
         obj._set_request_context(request)
         response = obj._stub.SetProperty(request)
         response = typing.cast(active_pb2.SetPropertyResponse, response)
-        assert response is not None
+        return response
 
     def get(self):
         return self._get(self._obj)
@@ -147,12 +165,13 @@ class AxServeEvent:
             ],
             return_annotation=None,
         )
-        self._handlers = []
+        self._handlers: list[Callable] = []
         self._handlers_lock = threading.RLock()
         self.__name__ = self._info.name
         self.__signature__ = self._sig
 
     def connect(self, handler):
+        response = None
         with self._handlers_lock:
             if not self._handlers:
                 request = active_pb2.ConnectEventRequest()
@@ -160,10 +179,13 @@ class AxServeEvent:
                 self._obj._set_request_context(request)
                 response = self._obj._stub.ConnectEvent(request)
                 response = typing.cast(active_pb2.ConnectEventResponse, response)
-                assert response.successful
+                if not response.successful:
+                    raise RuntimeError("Failed to connect event")
             self._handlers.append(handler)
+        return response
 
     def disconnect(self, handler):
+        response = None
         with self._handlers_lock:
             self._handlers.remove(handler)
             if not self._handlers:
@@ -172,7 +194,9 @@ class AxServeEvent:
                 self._obj._set_request_context(request)
                 response = self._obj._stub.DisconnectEvent(request)
                 response = typing.cast(active_pb2.DisconnectEventResponse, response)
-                assert response.successful
+                if not response.successful:
+                    raise RuntimeError("Failsed to disconnect event")
+        return response
 
     def call(self, *args, **kwargs):
         with self._handlers_lock:
@@ -202,6 +226,16 @@ class AxServeMember:
     @property
     def event(self):
         return self._event
+
+    def get(self):
+        if self._prop:
+            return self._prop._get(self._obj)
+        raise NotImplementedError()
+
+    def set(self, value):
+        if self._prop:
+            return self._prop._set(self._obj, value)
+        raise NotImplementedError()
 
     def __get__(
         self,
@@ -278,7 +312,8 @@ class AxServeEventLoop:
             response = active_pb2.HandleEventResponse()
             response.index = handle_event.index
             response.id = handle_event.id
-            self._obj._handle_event_response_queue.put(response)
+            if self._obj._handle_event_response_queue:
+                self._obj._handle_event_response_queue.put(response)
 
     def exec(self) -> int:
         with self._create_exec_context():
@@ -324,7 +359,7 @@ class AxServeEventLoop:
             self._return_code = return_code
         if self._obj._handle_event_response_queue:
             self._obj._handle_event_response_queue.close()
-        if self._obj._handle_event_requests:
+        elif self._obj._handle_event_requests:
             handle_events = typing.cast(grpc.RpcContext, self._obj._handle_event_requests)
             handle_events.cancel()
 
@@ -343,11 +378,11 @@ class AxServeObject:
     def __init__(
         self,
         channel: Union[grpc.Channel, str],
-        channel_ready_timeout: Optional[int] = None,
         *,
+        channel_ready_timeout: Optional[int] = None,
+        start_event_loop: Optional[bool] = True,
         thread_constructor: Optional[Callable[..., Thread]] = None,
         thread_pool_executor: Optional[ThreadPoolExecutor] = None,
-        start_event_loop: bool = True,
     ):
         try:
             self.__dict__["_members_dict"] = {}
@@ -369,6 +404,9 @@ class AxServeObject:
 
             if channel_ready_timeout is None:
                 channel_ready_timeout = 10
+
+            if start_event_loop is None:
+                start_event_loop = True
 
             if isinstance(channel, str):
                 try:
@@ -457,11 +495,11 @@ class AxServeObject:
     def __getitem__(self, name) -> AxServeMember:
         if name in self._members_dict:
             return self._members_dict[name]
-        return super().__getitem__(name)
+        raise KeyError(name)
 
     def __dir__(self) -> Iterable[str]:
         members = list(self._members_dict.keys())
-        attrs = super().__dir__()
+        attrs = list(super().__dir__())
         return members + attrs
 
     def _get_handle_event_context_stack(self) -> list[active_pb2.HandleEventRequest]:
@@ -498,6 +536,8 @@ class AxServeObject:
 
     @property
     def event_loop(self) -> AxServeEventLoop:
+        if self._event_loop is None:
+            raise ValueError("Member event_loop is not initialized")
         return self._event_loop
 
     def close(self, timeout: Optional[float] = None):

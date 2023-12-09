@@ -1,0 +1,96 @@
+include_guard(GLOBAL)
+
+message(CHECK_START "Checking Abseil C++ provider")
+
+if(AXSERVE_ABSL_PROVIDER STREQUAL "module")
+    set(ABSL_EXTERNAL_NAME "absl")
+
+    set(ABSL_SOURCE_DIR   "${CMAKE_CURRENT_SOURCE_DIR}/third_party/abseil-cpp")
+    set(ABSL_PREFIX_DIR   "${CMAKE_CURRENT_BINARY_DIR}/absl")
+    set(ABSL_BINARY_DIR   "${CMAKE_CURRENT_BINARY_DIR}/absl-build")
+    set(ABSL_INSTALL_DIR  "${ABSL_PREFIX_DIR}")
+    set(ABSL_TMP_DIR      "${ABSL_PREFIX_DIR}/tmp")
+    set(ABSL_STAMP_DIR    "${ABSL_TMP_DIR}/stamp")
+    set(ABSL_LOG_DIR      "${ABSL_TMP_DIR}/log")
+    set(ABSL_DOWNLOAD_DIR "${ABSL_TMP_DIR}/download")
+
+    if(NOT EXISTS "${ABSL_SOURCE_DIR}/CMakeLists.txt")
+        set(ABSL_GIT_REPOSITORY "https://github.com/abseil/abseil-cpp.git")
+        set(ABSL_GIT_TAG "20230802.1")
+    endif()
+
+    set(ABSL_CMAKE_COMMAND "${CMAKE_COMMAND}")
+
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        set(ABSL_CMAKE_ARGS
+            "-DCMAKE_SYSTEM_NAME:STRING=${CMAKE_SYSTEM_NAME}"
+            "-DCMAKE_SYSTEM_PROCESSOR:STRING=${CMAKE_SYSTEM_PROCESSOR}"
+            "-P" "${CMAKE_CURRENT_LIST_DIR}/../msvc/env-msvc.cmake"
+            "--" "${ABSL_CMAKE_COMMAND}")
+        set(ABSL_BUILD_COMMAND
+            "${ABSL_CMAKE_COMMAND}" ${ABSL_CMAKE_ARGS}
+            "--build" "${ABSL_BINARY_DIR}"
+            "--parallel")
+    endif()
+
+    set(ABSL_PATCH_COMMAND
+        git restore * &&
+        git apply --ignore-whitespace "${CMAKE_CURRENT_LIST_DIR}/../../patches/absl-20230802.1.patch")
+
+    include("${CMAKE_CURRENT_LIST_DIR}/googletest.cmake")
+    set(ABSL_CMAKE_CACHE_ARGS
+        "-DCMAKE_INSTALL_PREFIX:PATH=${ABSL_PREFIX_DIR}"
+        "-DCMAKE_PREFIX_PATH:PATH=${CMAKE_PREFIX_PATH}"
+        "-DCMAKE_SYSTEM_NAME:STRING=${CMAKE_SYSTEM_NAME}"
+        "-DCMAKE_SYSTEM_PROCESSOR:STRING=${CMAKE_SYSTEM_PROCESSOR}"
+        "-DCMAKE_CROSSCOMPILING:BOOL=${ABSL_CMAKE_CROSSCOMPILING}"
+        "-DCMAKE_TOOLCHAIN_FILE:PATH=${CMAKE_TOOLCHAIN_FILE}"
+        "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
+        "-DBUILD_SHARED_LIBS:BOOL=${BUILD_SHARED_LIBS}"
+        "-DCMAKE_CXX_STANDARD:STRING=${CMAKE_CXX_STANDARD}"
+        "-DCMAKE_CXX_STANDARD_REQUIRED:BOOL=${CMAKE_CXX_STANDARD_REQUIRED}"
+        "-DABSL_PROPAGATE_CXX_STD:BOOL=ON"
+        "-DABSL_ENABLE_INSTALL:BOOL=ON"
+        "-DABSL_BUILD_TESTING:BOOL=ON"
+        "-DABSL_USE_GOOGLETEST_HEAD:BOOL=OFF"
+        "-DABSL_USE_EXTERNAL_GOOGLETEST:BOOL=ON"
+        "-DABSL_FIND_GOOGLETEST:BOOL=ON"
+    )
+    set(ABSL_DEPENDS "")
+    if(AXSERVE_GTEST_PROVIDER STREQUAL "module")
+        list(APPEND ABSL_DEPENDS GTest)
+    endif()
+
+    include(ExternalProject)
+    ExternalProject_Add("${ABSL_EXTERNAL_NAME}"
+        PREFIX "${ABSL_PREFIX_DIR}"
+        TMP_DIR "${ABSL_TMP_DIR}"
+        STAMP_DIR "${ABSL_STAMP_DIR}"
+        LOG_DIR "${ABSL_LOG_DIR}"
+        DOWNLOAD_DIR "${ABSL_DOWNLOAD_DIR}"
+        SOURCE_DIR "${ABSL_SOURCE_DIR}"
+        BINARY_DIR "${ABSL_BINARY_DIR}"
+        INSTALL_DIR "${ABSL_INSTALL_DIR}"
+        GIT_REPOSITORY "${ABSL_GIT_REPOSITORY}"
+        GIT_TAG "${ABSL_GIT_TAG}"
+        CMAKE_COMMAND "${ABSL_CMAKE_COMMAND}"
+        CMAKE_ARGS ${ABSL_CMAKE_ARGS}
+        CMAKE_CACHE_ARGS ${ABSL_CMAKE_CACHE_ARGS}
+        BUILD_COMMAND ${ABSL_BUILD_COMMAND}
+        PATCH_COMMAND  ${ABSL_PATCH_COMMAND}
+        DEPENDS ${ABSL_DEPENDS}
+        LOG_CONFIGURE TRUE
+        LOG_BUILD TRUE
+    )
+
+    ExternalProject_Get_Property("${ABSL_EXTERNAL_NAME}" INSTALL_DIR)
+    set(ABSL_INSTALL_DIR "${INSTALL_DIR}")
+    list(APPEND CMAKE_PREFIX_PATH "${ABSL_INSTALL_DIR}")
+
+    message(CHECK_PASS "${AXSERVE_ABSL_PROVIDER}")
+elseif(AXSERVE_ABSL_PROVIDER STREQUAL "package")
+    find_package(absl CONFIG REQUIRED)
+    message(CHECK_PASS "${AXSERVE_ABSL_PROVIDER}")
+else()
+    message(CHECK_FAIL "${AXSERVE_ABSL_PROVIDER}")
+endif()

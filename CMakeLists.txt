@@ -16,7 +16,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}" CACHE PATH "Det
 set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_LIST_DIR}/cmake/toolchain/toolchain-msvc-auto.cmake" CACHE STRING "CMake toolchain file")
 
 # project definition
-project(AxServe VERSION 0.1.0 LANGUAGES CXX)
+project(AxServe VERSION 0.1.3 LANGUAGES CXX)
 
 # cache variable for executable's name
 string(TOLOWER "${PROJECT_NAME}" PROJECT_NAME_LOWERCASE)
@@ -64,12 +64,16 @@ file(GLOB_RECURSE TS_FILES
 set(PROJECT_SOURCE_FILES ${CXX_FILES} ${PROTO_FILES} ${TS_FILES})
 
 # use cxx standard 20
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD 20 CACHE STRING "C++ compiler standard")
+set(CMAKE_CXX_STANDARD_REQUIRED ON CACHE BOOL "C++ compiler standard required")
 
 # cache variables for dependency resolution
+set(AXSERVE_GTEST_PROVIDER "module" CACHE STRING "Provider of GoogleTest library")
+set_property(CACHE AXSERVE_GTEST_PROVIDER PROPERTY STRINGS "module" "package")
 set(AXSERVE_ZLIB_PROVIDER "module" CACHE STRING "Provider of zlib library")
 set_property(CACHE AXSERVE_ZLIB_PROVIDER PROPERTY STRINGS "module" "package")
+set(AXSERVE_ABSL_PROVIDER "module" CACHE STRING "Provider of Abseil C++ library")
+set_property(CACHE AXSERVE_ABSL_PROVIDER PROPERTY STRINGS "module" "package")
 set(AXSERVE_PROTOBUF_PROVIDER "module" CACHE STRING "Provider of Protobuf library")
 set_property(CACHE AXSERVE_PROTOBUF_PROVIDER PROPERTY STRINGS "module" "package")
 set(AXSERVE_GRPC_PROVIDER "module" CACHE STRING "Provider of gRPC library")
@@ -80,19 +84,21 @@ set_property(CACHE AXSERVE_QT6_PROVIDER PROPERTY STRINGS "module" "package")
 # configure dependent packages
 message(CHECK_START "Configure dependencies")
 list(APPEND CMAKE_MESSAGE_INDENT "  ")
-include("${CMAKE_CURRENT_LIST_DIR}/cmake/dependency/zlib.cmake")
-include("${CMAKE_CURRENT_LIST_DIR}/cmake/dependency/protobuf.cmake")
-include("${CMAKE_CURRENT_LIST_DIR}/cmake/dependency/grpc.cmake")
-include("${CMAKE_CURRENT_LIST_DIR}/cmake/dependency/qt.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/cmake/dependencies/googletest.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/cmake/dependencies/zlib.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/cmake/dependencies/abseil-cpp.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/cmake/dependencies/protobuf.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/cmake/dependencies/grpc.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/cmake/dependencies/qt.cmake")
 list(POP_BACK CMAKE_MESSAGE_INDENT)
 message(CHECK_PASS "done")
 
 # check dependency resolutions
 set(AXSERVE_DEPENDS "")
-if(AXSERVE_ZLIB_PROVIDER STREQUAL "module")
-    list(APPEND AXSERVE_DEPENDS ZLIB)
+if(AXSERVE_PROTOBUF_PROVIDER STREQUAL "module")
+    list(APPEND AXSERVE_DEPENDS Protobuf)
 endif()
-if(AXSERVE_PROTOBUF_PROVIDER STREQUAL "module" OR AXSERVE_GRPC_PROVIDER STREQUAL "module")
+if(AXSERVE_GRPC_PROVIDER STREQUAL "module")
     list(APPEND AXSERVE_DEPENDS gRPC)
 endif()
 if(AXSERVE_QT6_PROVIDER STREQUAL "module")
@@ -110,10 +116,14 @@ if(AXSERVE_DEPENDS)
     set(AXSERVE_EXTERNAL_NAME "${PROJECT_NAME}")
 
     # directories for super build
-    set(AXSERVE_SOURCE_DIR  "${CMAKE_CURRENT_SOURCE_DIR}")
-    set(AXSERVE_PREFIX_DIR  "${CMAKE_CURRENT_BINARY_DIR}/1st/axserve")
-    set(AXSERVE_BINARY_DIR  "${AXSERVE_PREFIX_DIR}/build")
-    set(AXSERVE_INSTALL_DIR "${AXSERVE_PREFIX_DIR}")
+    set(AXSERVE_SOURCE_DIR   "${CMAKE_CURRENT_SOURCE_DIR}")
+    set(AXSERVE_PREFIX_DIR   "${CMAKE_CURRENT_BINARY_DIR}/axserve")
+    set(AXSERVE_BINARY_DIR   "${CMAKE_CURRENT_BINARY_DIR}/axserve-build")
+    set(AXSERVE_INSTALL_DIR  "${AXSERVE_PREFIX_DIR}")
+    set(AXSERVE_TMP_DIR      "${AXSERVE_PREFIX_DIR}/tmp")
+    set(AXSERVE_STAMP_DIR    "${AXSERVE_TMP_DIR}/stamp")
+    set(AXSERVE_LOG_DIR      "${AXSERVE_TMP_DIR}/log")
+    set(AXSERVE_DOWNLOAD_DIR "${AXSERVE_TMP_DIR}/download")
 
     # setup cmake command and args
     set(AXSERVE_CMAKE_COMMAND "${CMAKE_COMMAND}")
@@ -143,7 +153,9 @@ if(AXSERVE_DEPENDS)
         "-DCMAKE_CXX_STANDARD_REQUIRED:BOOL=${CMAKE_CXX_STANDARD_REQUIRED}"
         "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY:PATH=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
         "-DAXSERVE_WIN32_EXECUTABLE:STRING=${AXSERVE_WIN32_EXECUTABLE}"
+        "-DAXSERVE_GTEST_PROVIDER:STRING=package"
         "-DAXSERVE_ZLIB_PROVIDER:STRING=package"
+        "-DAXSERVE_ABSL_PROVIDER:STRING=package"
         "-DAXSERVE_PROTOBUF_PROVIDER:STRING=package"
         "-DAXSERVE_GRPC_PROVIDER:STRING=package"
         "-DAXSERVE_QT6_PROVIDER:STRING=package"
@@ -195,6 +207,10 @@ if(AXSERVE_DEPENDS)
     include(ExternalProject)
     ExternalProject_Add("${AXSERVE_EXTERNAL_NAME}"
         PREFIX "${AXSERVE_PREFIX_DIR}"
+        TMP_DIR "${AXSERVE_TMP_DIR}"
+        STAMP_DIR "${AXSERVE_STAMP_DIR}"
+        LOG_DIR "${AXSERVE_LOG_DIR}"
+        DOWNLOAD_DIR "${AXSERVE_DOWNLOAD_DIR}"
         SOURCE_DIR "${AXSERVE_SOURCE_DIR}"
         BINARY_DIR "${AXSERVE_BINARY_DIR}"
         INSTALL_DIR "${AXSERVE_INSTALL_DIR}"
@@ -205,6 +221,8 @@ if(AXSERVE_DEPENDS)
         BUILD_COMMAND ${AXSERVE_BUILD_COMMAND}
         BUILD_ALWAYS TRUE
         DEPENDS ${AXSERVE_DEPENDS}
+        LOG_CONFIGURE TRUE
+        LOG_BUILD TRUE
     )
 
     # configure install dirs

@@ -70,7 +70,9 @@ if(NOT CMAKE_CXX_COMPILER AND CMAKE_SYSTEM_PROCESSOR AND CMAKE_HOST_SYSTEM_NAME 
     list(APPEND CMAKE_MESSAGE_INDENT "  ")
     if(NOT VS_SETUP)
         message(CHECK_START "Finding Visual Studio BuildTools")
+        list(APPEND CMAKE_MESSAGE_INDENT "  ")
         include("${CMAKE_CURRENT_LIST_DIR}/../msvc/setup-msvc-vars.cmake")
+        list(POP_BACK CMAKE_MESSAGE_INDENT)
         if(VS_SETUP)
             if(VS_INSTALLATION_PATH)
                 message(CHECK_PASS "${VS_INSTALLATION_PATH}")
@@ -98,7 +100,7 @@ if(NOT CMAKE_CXX_COMPILER)
 endif()
 
 # we can determine the cxx compiler, determine compiler here
-message(CHECK_START "Checking CXX compiler idendification")
+message(CHECK_START "Checking CXX compiler identification")
 list(APPEND CMAKE_MESSAGE_INDENT "  ")
 include(CMakeDetermineCXXCompiler)
 list(POP_BACK CMAKE_MESSAGE_INDENT)

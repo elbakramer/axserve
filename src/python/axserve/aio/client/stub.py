@@ -544,7 +544,10 @@ class AxServeObject:
         if self._channel:
             await self._channel.close()
         if self._server_process:
-            self._server_process.terminate()
+            try:
+                self._server_process.terminate()
+            except ProcessLookupError:
+                pass
             await self._server_process.wait()
 
     def _close_sync(self):

@@ -16,7 +16,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}" CACHE PATH "Det
 set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_LIST_DIR}/cmake/toolchain/toolchain-msvc-auto.cmake" CACHE STRING "CMake toolchain file")
 
 # project definition
-project(AxServe VERSION 0.1.3 LANGUAGES CXX)
+project(AxServe VERSION 0.1.4 LANGUAGES CXX)
 
 # cache variable for executable's name
 string(TOLOWER "${PROJECT_NAME}" PROJECT_NAME_LOWERCASE)

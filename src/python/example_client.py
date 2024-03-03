@@ -14,20 +14,18 @@ def main():
             print(ax.GetAPIModulePath())
             print(ax.GetConnectState())
 
-            connected = threading.Condition()
+            connected = threading.Event()
 
             def OnEventConnect(res):
                 print(res)
                 ax.OnEventConnect.disconnect(OnEventConnect)
-                with connected:
-                    connected.notify()
+                connected.set()
 
             ax.OnEventConnect.connect(OnEventConnect)
 
             print(ax.CommConnect())
 
-            with connected:
-                connected.wait()
+            connected.wait()
 
 
 if __name__ == "__main__":

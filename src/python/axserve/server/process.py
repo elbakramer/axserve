@@ -17,11 +17,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from subprocess import Popen
 
-from axserve.common.process import AssignProcessToJobObject
-from axserve.common.process import CreateJobObjectForCleanUp
+from axserve.common.process import KillOnDeletePopen
 from axserve.common.registry import CheckMachineFromCLSID
+from axserve.common.runnable_popen import RunnablePopen
 
 
 def FindServerExecutableForCLSID(clsid: str) -> Path:
@@ -32,20 +31,19 @@ def FindServerExecutableForCLSID(clsid: str) -> Path:
         raise ValueError(msg)
     executable_candidate_names = [f"axserve-{machine.lower()}-console-{config}.exe" for config in configs]
     executable_dir = Path(__file__).parent / "exe"
+    executable: Path | None = None
     for name in executable_candidate_names:
         executable = executable_dir / name
         if executable.exists():
             break
-    if not executable.exists():
+    if not executable or not executable.exists():
         msg = f"Cannot find server executable for clsid: {clsid}"
         raise RuntimeError(msg)
     return executable
 
 
-class AxServeServerProcess(Popen):
+class AxServeServerProcess(KillOnDeletePopen, RunnablePopen):
     def __init__(self, clsid: str, address: str, *args, **kwargs):
         executable = FindServerExecutableForCLSID(clsid)
         cmd = [executable, f"--clsid={clsid}", f"--address={address}", "--no-gui"]
         super().__init__(cmd, *args, **kwargs)
-        self._job_handle = CreateJobObjectForCleanUp()
-        AssignProcessToJobObject(self._job_handle, self.pid)

@@ -20,8 +20,8 @@ import asyncio
 
 from asyncio import Task
 from asyncio.subprocess import Process
+from collections.abc import Coroutine
 from typing import Any
-from typing import Coroutine
 
 from axserve.common.process import AssignProcessToJobObject
 from axserve.common.process import CreateJobObjectForCleanUp

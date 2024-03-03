@@ -16,6 +16,8 @@
 
 from __future__ import annotations
 
+from axserve.common.runnable_popen import RunnablePopen
+
 
 def CreateJobObjectForCleanUp() -> int:
     return 0
@@ -23,3 +25,11 @@ def CreateJobObjectForCleanUp() -> int:
 
 def AssignProcessToJobObject(hJob: int, processId: int) -> None:
     return
+
+
+class KillOnExitPopen(RunnablePopen):
+    pass
+
+
+class KillOnDeletePopen(RunnablePopen):
+    pass

@@ -17,19 +17,29 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from collections.abc import Callable
+from typing import Any
+from typing import ParamSpec
 from typing import Protocol
 
 from axserve.common.protocol import check_names_in_mro
 
 
-class Closeable(Protocol):
+P = ParamSpec("P")
+
+
+class AsyncConnectable(Protocol[P]):
     @abstractmethod
-    def close(self) -> None:
+    async def connect(self, handler: Callable[P, Any]) -> None:
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def disconnect(self, handler: Callable[P, Any]) -> None:
         raise NotImplementedError()
 
     @classmethod
     def __subclasshook__(cls, __subclass: type) -> bool:
-        if cls is Closeable:
-            if check_names_in_mro(["close"], __subclass):
+        if cls is AsyncConnectable:
+            if check_names_in_mro(["connect", "disconnect"], __subclass):
                 return True
         return super().__subclasshook__(__subclass)

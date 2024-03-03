@@ -27,7 +27,7 @@ if(AXSERVE_QT6_PROVIDER STREQUAL "module")
 
     if(NOT EXISTS "${QT6_SOURCE_DIR}/CMakeLists.txt")
         set(QT6_GIT_REPOSITORY "https://code.qt.io/qt/qt5.git")
-        set(QT6_GIT_TAG "v6.6.1")
+        set(QT6_GIT_TAG "v6.6.2")
         set(QT6_GIT_SUBMODULES ${QT6_SUBMODULES})
     endif()
 

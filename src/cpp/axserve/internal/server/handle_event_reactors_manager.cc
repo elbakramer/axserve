@@ -25,7 +25,7 @@ HandleEventReactor *
 HandleEventReactorsManager::createReactor(const QString &peer) {
   QMutexLocker<QMutex> lock(&m_reactorsMutex);
   HandleEventReactor *reactor = new HandleEventReactor(sharedFromThis(), peer);
-  m_reactors[peer].push_back(reactor);
+  m_reactors[peer].append(reactor);
   return reactor;
 }
 
@@ -60,10 +60,6 @@ void HandleEventReactorsManager::disconnectEvent(
     m_connections[peer].remove(index);
     if (m_connections[peer].size() == 0) {
       m_connections.remove(peer);
-      {
-        QMutexLocker<QMutex> lock(&m_reactorsMutex);
-        m_reactors.remove(peer);
-      }
     }
   }
 }
@@ -74,12 +70,17 @@ void HandleEventReactorsManager::startHandle(
 ) {
   QMutexLocker<QMutex> lock1(&m_reactorsMutex);
   QMutexLocker<QMutex> lock2(&m_connectionsMutex);
-  counter->setCount(m_reactors.size());
+  QList<HandleEventReactor *> reactors;
   for (auto [peer, counts] : m_connections.asKeyValueRange()) {
     if (counts[index] > 0) {
-      for (auto reactor : m_reactors[peer]) {
-        reactor->startHandle(request, counter);
-      }
+      reactors << m_reactors[peer];
     }
+  }
+  if (reactors.size() == 0) {
+    return;
+  }
+  counter->setCount(reactors.size());
+  for (auto reactor : reactors) {
+    reactor->startHandle(request, counter);
   }
 }

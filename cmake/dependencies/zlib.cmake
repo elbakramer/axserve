@@ -20,7 +20,7 @@ if(AXSERVE_ZLIB_PROVIDER STREQUAL "module")
 
     if(NOT EXISTS "${ZLIB_SOURCE_DIR}/CMakeLists.txt")
         set(ZLIB_GIT_REPOSITORY "https://github.com/zlib-ng/zlib-ng.git")
-        set(ZLIB_GIT_TAG "2.1.5")
+        set(ZLIB_GIT_TAG "2.1.6")
     endif()
 
     set(ZLIB_CMAKE_COMMAND "${CMAKE_COMMAND}")
@@ -37,7 +37,7 @@ if(AXSERVE_ZLIB_PROVIDER STREQUAL "module")
             "--parallel")
         set(ZLIB_PATCH_COMMAND
             git restore * &&
-            git apply --ignore-whitespace "${CMAKE_CURRENT_LIST_DIR}/../../patches/zlib-ng-2.1.5.patch")
+            git apply --ignore-whitespace "${CMAKE_CURRENT_LIST_DIR}/../../patches/zlib-ng-2.1.6.patch")
     endif()
 
     include("${CMAKE_CURRENT_LIST_DIR}/googletest.cmake")

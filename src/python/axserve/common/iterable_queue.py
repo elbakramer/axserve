@@ -16,9 +16,8 @@
 
 from __future__ import annotations
 
-from typing import Iterable
-from typing import Iterator
-from typing import Optional
+from collections.abc import Iterable
+from collections.abc import Iterator
 from typing import TypeVar
 
 from axserve.common.closeable_queue import CloseableQueue
@@ -29,7 +28,7 @@ T = TypeVar("T")
 
 
 class IterableQueue(CloseableQueue[T], Iterable[T]):
-    def next(self, timeout: Optional[float] = None) -> T:
+    def next(self, timeout: float | None = None) -> T:  # noqa: A003
         try:
             return self.get(timeout=timeout)
         except Closed as exc:

@@ -16,20 +16,18 @@
 
 from __future__ import annotations
 
-from abc import abstractmethod
-from typing import Protocol
-
-from axserve.common.protocol import check_names_in_mro
+from axserve.client.stubgen import *
+from axserve.client.stubgen import StubGenerator as SyncStubGenerator
 
 
-class Closeable(Protocol):
-    @abstractmethod
-    def close(self) -> None:
-        raise NotImplementedError()
-
-    @classmethod
-    def __subclasshook__(cls, __subclass: type) -> bool:
-        if cls is Closeable:
-            if check_names_in_mro(["close"], __subclass):
-                return True
-        return super().__subclasshook__(__subclass)
+class StubGenerator(SyncStubGenerator):
+    def __init__(
+        self,
+        *,
+        is_base: bool = False,
+    ):
+        is_async = True
+        super().__init__(
+            is_async=is_async,
+            is_base=is_base,
+        )

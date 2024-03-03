@@ -225,6 +225,8 @@ void ActiveServiceRequestProcessor::process_request(
     prop_info->set_index(i);
     prop_info->set_name(prop.name());
     prop_info->set_property_type(prop.typeName());
+    prop_info->set_is_readable(prop.isReadable());
+    prop_info->set_is_writable(prop.isWritable());
   }
   const auto &methods = m_control_extension.methods();
   for (size_t i = 0; i < methods.size(); i++) {

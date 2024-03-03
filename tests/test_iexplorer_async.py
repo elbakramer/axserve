@@ -18,10 +18,10 @@ from __future__ import annotations
 
 import asyncio
 
-from axserve.aio.client.stub import AxServeObject
 
+async def test_dynamic_iexplorer_async():
+    from axserve.aio.client.stub import AxServeObject
 
-async def test_iexplorer_async():
     on_visible_fired = asyncio.Event()
 
     async def OnVisible(visible):
@@ -29,7 +29,34 @@ async def test_iexplorer_async():
 
     async with AxServeObject("InternetExplorer.Application") as iexplorer:
         await iexplorer.OnVisible.connect(OnVisible)
-        await iexplorer.__setattr__("Visible", 1)
+        await iexplorer.__setattr__("Visible", 1)  # normal assignment syntax won't return awaitable
+        fired = await on_visible_fired.wait()
+        assert fired
+        await iexplorer.Quit()
+        await asyncio.sleep(1)
+
+
+async def test_declarative_iexplorer_async():
+    from axserve.aio.client.descriptor import AxServeEvent
+    from axserve.aio.client.descriptor import AxServeMethod
+    from axserve.aio.client.descriptor import AxServeProperty
+    from axserve.aio.client.stub import AxServeObject
+
+    class IExplorer(AxServeObject):
+        __CLSID__ = "InternetExplorer.Application"
+
+        OnVisible = AxServeEvent()
+        Visible = AxServeProperty()
+        Quit = AxServeMethod()
+
+    on_visible_fired = asyncio.Event()
+
+    async def OnVisible(visible):
+        on_visible_fired.set()
+
+    async with IExplorer() as iexplorer:
+        await iexplorer.OnVisible.connect(OnVisible)
+        await iexplorer.__setattr__("Visible", 1)  # normal assignment syntax won't return awaitable
         fired = await on_visible_fired.wait()
         assert fired
         await iexplorer.Quit()
@@ -38,4 +65,5 @@ async def test_iexplorer_async():
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(test_iexplorer_async())
+    loop.run_until_complete(test_dynamic_iexplorer_async())
+    loop.run_until_complete(test_declarative_iexplorer_async())

@@ -28,7 +28,7 @@ if(AXSERVE_PROTOBUF_PROVIDER STREQUAL "module")
 
     if(NOT EXISTS "${PROTOBUF_SOURCE_DIR}/CMakeLists.txt")
         set(PROTOBUF_GIT_REPOSITORY "https://github.com/protocolbuffers/protobuf.git")
-        set(PROTOBUF_GIT_TAG "v25.1")
+        set(PROTOBUF_GIT_TAG "v25.3")
     endif()
 
     set(PROTOBUF_CMAKE_COMMAND "${CMAKE_COMMAND}")
@@ -48,7 +48,7 @@ if(AXSERVE_PROTOBUF_PROVIDER STREQUAL "module")
             "--install" "${PROTOBUF_BINARY_DIR}")
         set(PROTOBUF_PATCH_COMMAND
             git restore * &&
-            git apply --ignore-whitespace "${CMAKE_CURRENT_LIST_DIR}/../../patches/protobuf-v25.1.patch")
+            git apply --ignore-whitespace "${CMAKE_CURRENT_LIST_DIR}/../../patches/protobuf-v25.3.patch")
     endif()
 
     include("${CMAKE_CURRENT_LIST_DIR}/googletest.cmake")

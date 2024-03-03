@@ -16,20 +16,10 @@
 
 from __future__ import annotations
 
-from abc import abstractmethod
-from typing import Protocol
 
-from axserve.common.protocol import check_names_in_mro
+def check_name_in_mro(name: str, subclass: type) -> bool:
+    return any(name in baseclass.__dict__ for baseclass in subclass.__mro__)
 
 
-class Closeable(Protocol):
-    @abstractmethod
-    def close(self) -> None:
-        raise NotImplementedError()
-
-    @classmethod
-    def __subclasshook__(cls, __subclass: type) -> bool:
-        if cls is Closeable:
-            if check_names_in_mro(["close"], __subclass):
-                return True
-        return super().__subclasshook__(__subclass)
+def check_names_in_mro(names: list[str], subclass: type) -> bool:
+    return all(check_name_in_mro(name, subclass) for name in names)

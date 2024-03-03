@@ -22,14 +22,26 @@ from typing import Protocol
 from axserve.common.protocol import check_names_in_mro
 
 
-class Closeable(Protocol):
+class AsyncAquireable(Protocol):
     @abstractmethod
-    def close(self) -> None:
+    async def aquire(self) -> bool:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def release(self) -> None:
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def __aenter__(self) -> bool:
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def __aexit__(self, exc_type, exc_value, traceback) -> None:
         raise NotImplementedError()
 
     @classmethod
     def __subclasshook__(cls, __subclass: type) -> bool:
-        if cls is Closeable:
-            if check_names_in_mro(["close"], __subclass):
+        if cls is AsyncAquireable:
+            if check_names_in_mro(["aquire", "release", "__enter__", "__exit__"], __subclass):
                 return True
         return super().__subclasshook__(__subclass)

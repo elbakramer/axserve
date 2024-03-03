@@ -43,17 +43,23 @@ public:
     int prop_count = meta->propertyCount();
     for (int i = prop_offset; i < prop_count; i++) {
       QMetaProperty prop = meta->property(i);
+      if (!prop.isValid()) {
+        continue;
+      }
       m_properties.push_back(prop);
     }
     int method_offset = meta->methodOffset();
     int method_count = meta->methodCount();
     for (int i = method_offset; i < method_count; i++) {
       QMetaMethod method = meta->method(i);
+      if (!method.isValid()) {
+        continue;
+      }
       QMetaMethod::MethodType method_type = method.methodType();
-      if (method_type == QMetaMethod::MethodType::Signal) {
-        m_events.push_back(method);
-      } else {
+      if (method_type == QMetaMethod::MethodType::Slot) {
         m_methods.push_back(method);
+      } else if (method_type == QMetaMethod::MethodType::Signal) {
+        m_events.push_back(method);
       }
     }
   }

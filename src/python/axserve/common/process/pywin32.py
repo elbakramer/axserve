@@ -20,6 +20,8 @@ import win32api
 import win32con
 import win32job
 
+from axserve.common.runnable_popen import RunnablePopen
+
 
 def CreateJobObjectForCleanUp() -> int:
     jobAttributes = None
@@ -46,3 +48,20 @@ def AssignProcessToJobObject(hJob: int, processId: int) -> None:
         processId,
     )
     return win32job.AssignProcessToJobObject(hJob, hProcess)
+
+
+class KillOnExitPopen(RunnablePopen):
+    _job_handle: int = CreateJobObjectForCleanUp()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        AssignProcessToJobObject(self._job_handle, self.pid)
+
+
+class KillOnDeletePopen(RunnablePopen):
+    _job_handle: int
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._job_handle = CreateJobObjectForCleanUp()
+        AssignProcessToJobObject(self._job_handle, self.pid)

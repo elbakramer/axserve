@@ -16,20 +16,28 @@
 
 from __future__ import annotations
 
-from abc import abstractmethod
-from typing import Protocol
+from collections.abc import Callable
+from typing import Concatenate
+from typing import ParamSpec
+from typing import TypeVar
 
-from axserve.common.protocol import check_names_in_mro
+from axserve.aio.client.descriptor import AxServeEvent
+from axserve.aio.client.descriptor import AxServeMethod
+from axserve.aio.client.descriptor import AxServeProperty
 
 
-class Closeable(Protocol):
-    @abstractmethod
-    def close(self) -> None:
-        raise NotImplementedError()
+T = TypeVar("T")
+P = ParamSpec("P")
+R = TypeVar("R")
 
-    @classmethod
-    def __subclasshook__(cls, __subclass: type) -> bool:
-        if cls is Closeable:
-            if check_names_in_mro(["close"], __subclass):
-                return True
-        return super().__subclasshook__(__subclass)
+
+def event(f: Callable[Concatenate[T, P], R]):
+    return AxServeEvent(f)
+
+
+def method(f: Callable[Concatenate[T, P], R]):
+    return AxServeMethod(f)
+
+
+def property(f: Callable[Concatenate[T, P], R]):
+    return AxServeProperty(f)

@@ -64,17 +64,20 @@ def CheckRegQuery(
 ) -> bool:
     if isinstance(keyname, str):
         if keyname.startswith("\\\\"):
-            raise ValueError("Given keyname starts with explicit computername")
+            msg = "Given keyname starts with explicit computername"
+            raise ValueError(msg)
         keyname = keyname.split("\\")
     if bits is None:
         bits, _ = platform.architecture()
     if isinstance(bits, int):
         if bits not in [64, 32]:
-            raise ValueError(f"Invalid bits: {bits}")
+            msg = f"Invalid bits: {bits}"
+            raise ValueError(msg)
         bits = f"{bits}bit"
     if isinstance(bits, str):
         if bits not in ["64bit", "32bit"]:
-            raise ValueError(f"Invalid bits: {bits}")
+            msg = f"Invalid bits: {bits}"
+            raise ValueError(msg)
     keyname[0] = RootKeyMapping[keyname[0]]
     if PlatformBits == "64bit" and bits == "32bit" and "WOW6432Node" not in keyname:
         keyname.insert(keyname.index("CLSID"), "WOW6432Node")
@@ -111,7 +114,7 @@ def CheckMachineFromCLSID(clsid: str) -> str | None:
         return WindowsMachine
     elif PlatformBits == "64bit":
         if CheckRegQueryCLSID(clsid, bits=32):
-            return WindowsMachine
+            return WindowsMachine32Bit
         elif CheckRegQueryProgID(clsid, bits=32):
-            return WindowsMachine
+            return WindowsMachine32Bit
     return None

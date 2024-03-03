@@ -97,8 +97,11 @@ Just started working on a Python client.
 
 Check the following codes for more information, until relevant documentations are added:
 
-- Python client implementation [stub.py](https://github.com/elbakramer/axserve/blob/main/src/python/axserve/client/stub.py)
 - Example usage of it [example_client.py](https://github.com/elbakramer/axserve/blob/main/src/python/example_client.py)
+- Example usages from tests:
+  - Normal synchronous API: [test_iexplorer.py](https://github.com/elbakramer/axserve/blob/main/tests/test_iexplorer.py)
+  - Asynchronous API under `asyncio` framework: [test_iexplorer_async.py](https://github.com/elbakramer/axserve/blob/main/tests/test_iexplorer_async.py)
+- Python client implementation [stub.py](https://github.com/elbakramer/axserve/blob/main/src/python/axserve/client/stub.py)
 - Proto file for gRPC service definition [active.proto](https://github.com/elbakramer/axserve/blob/main/src/proto/active.proto)
 
 # Building
@@ -169,7 +172,7 @@ https://ninja-build.org/
 choco install ninja
 ```
 
-## Build Project
+## Build Project using CMake
 
 ### List Configure Presets
 
@@ -187,4 +190,18 @@ cmake --preset x86-win32-debug .
 
 ```
 cmake --build .\build\x86-win32-debug --parallel
+```
+
+## Build Project using Hatch and publish
+
+### Build Project for Python client package
+
+```
+hatch build
+```
+
+## Publish to PyPI
+
+```
+hatch publish
 ```

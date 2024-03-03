@@ -24,7 +24,7 @@ if(AXSERVE_GRPC_PROVIDER STREQUAL "module")
 
     if(NOT EXISTS "${GRPC_SOURCE_DIR}/CMakeLists.txt")
         set(GRPC_GIT_REPOSITORY "https://github.com/grpc/grpc.git")
-        set(GRPC_GIT_TAG "v1.60.0")
+        set(GRPC_GIT_TAG "v1.62.0")
     endif()
 
     set(GRPC_CMAKE_COMMAND "${CMAKE_COMMAND}")

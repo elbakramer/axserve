@@ -19,7 +19,6 @@ from __future__ import annotations
 import inspect
 
 from typing import Any
-from typing import Optional
 
 from axserve.proto import active_pb2
 
@@ -74,7 +73,7 @@ def ValueFromVariant(variant: active_pb2.Variant) -> Any:
 
 def ValueToVariant(
     value: Any,
-    variant: Optional[active_pb2.Variant] = None,
+    variant: active_pb2.Variant | None = None,
 ) -> active_pb2.Variant:
     if variant is None:
         variant = active_pb2.Variant()
@@ -96,7 +95,8 @@ def ValueToVariant(
         for value_name, value_value in value.items():
             ValueToVariant(value_value, variant.map_value.values[value_name])
     else:
-        raise TypeError(f"Unexpected value type: {type(value)}")
+        msg = f"Unexpected value type: {type(value)}"
+        raise TypeError(msg)
     return variant
 
 

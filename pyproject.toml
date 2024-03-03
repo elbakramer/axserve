@@ -10,7 +10,7 @@ name = "axserve"
 dynamic = ["version"]
 description = "AxServe python client that provides interfaces of COM or OCX components through a gRPC server."
 readme = "README.md"
-requires-python = ">=3.8.1"
+requires-python = ">=3.10"
 license = "Apache-2.0"
 keywords = ["activex", "com", "ocx", "windows", "grpc", "qt6", "cpp", "python"]
 authors = [
@@ -26,17 +26,18 @@ classifiers = [
   "Operating System :: Microsoft :: Windows :: Windows 11",
   "Programming Language :: C++",
   "Programming Language :: Python",
-  "Programming Language :: Python :: 3.8",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
   "Environment :: Console",
   "Environment :: X11 Applications :: Qt",
 ]
 dependencies = [
-  "grpcio>=1.60.0",
+  "click>=8.1.7",
+  "grpcio>=1.62.0",
+  "wrapt>=1.16.0",
   "pywin32>=306; platform_system == 'Windows'",
 ]
 
@@ -44,6 +45,9 @@ dependencies = [
 Documentation = "https://github.com/elbakramer/axserve#readme"
 Issues = "https://github.com/elbakramer/axserve/issues"
 Source = "https://github.com/elbakramer/axserve"
+
+[project.scripts]
+axserve = "axserve.cli:main"
 
 [tool.hatch.version]
 path = "src/python/axserve/__about__.py"
@@ -102,7 +106,7 @@ cov = [
 ]
 
 [[tool.hatch.envs.all.matrix]]
-python = ["3.8", "3.9", "3.10", "3.11"]
+python = ["3.10", "3.11", "3.12"]
 
 [tool.hatch.envs.lint]
 detached = true
@@ -135,12 +139,12 @@ ignore-words-list = [
 ]
 
 [tool.black]
-target-version = ["py38"]
+target-version = ["py310"]
 line-length = 120
 skip-string-normalization = true
 
 [tool.ruff]
-target-version = "py38"
+target-version = "py310"
 line-length = 120
 select = [
   "A",

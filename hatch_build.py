@@ -1,3 +1,19 @@
+# Copyright 2023 Yunseong Hwang
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import re
@@ -11,13 +27,11 @@ from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 from packaging.requirements import Requirement
 
 
-class BuildHookInterfaceWithCheckCommand(BuildHookInterface):
-    def check_command(self, cmd):
-        return subprocess.check_call(cmd)
-
-
-class CMakeBuildHook(BuildHookInterfaceWithCheckCommand):
+class CMakeBuildHook(BuildHookInterface):
     PLUGIN_NAME = "cmake"
+
+    def check_command(self, cmd):
+        return subprocess.check_call(cmd, shell=False)
 
     def clean(self, versions: list[str]) -> None:
         builds = self.config.get("builds", [])
@@ -117,8 +131,11 @@ class CMakeBuildHook(BuildHookInterfaceWithCheckCommand):
         pass
 
 
-class ProtocBuildHook(BuildHookInterfaceWithCheckCommand):
+class ProtocBuildHook(BuildHookInterface):
     PLUGIN_NAME = "protoc"
+
+    def check_command(self, cmd):
+        return subprocess.check_call(cmd)
 
     def _fix_import_in_grpc_py(self, filename):
         with open(filename, "r+", encoding="utf-8") as f:
@@ -160,7 +177,11 @@ class CustomBuildHook(BuildHookInterface):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        assert not hasattr(self, "_hooks")
+
+        if hasattr(self, "_hooks"):
+            msg = "Attribute alreay exists: _hooks"
+            raise RuntimeError(msg)
+
         self._hooks: list[BuildHookInterface] = [
             ProtocBuildHook(*args, **kwargs),
             CMakeBuildHook(*args, **kwargs),

@@ -18,11 +18,13 @@ from __future__ import annotations
 
 import inspect
 
-from abc import ABC
 from abc import abstractmethod
+from typing import Protocol
+
+from axserve.common.protocol import check_name_in_mro
 
 
-class AsyncCloseable(ABC):
+class AsyncCloseable(Protocol):
     @abstractmethod
     async def close(self) -> None:
         raise NotImplementedError()
@@ -30,8 +32,6 @@ class AsyncCloseable(ABC):
     @classmethod
     def __subclasshook__(cls, __subclass: type) -> bool:
         if cls is AsyncCloseable:
-            if any(
-                "close" in __baseclass.__dict__ for __baseclass in __subclass.__mro__
-            ) and inspect.iscoroutinefunction(__subclass.close):
+            if check_name_in_mro("close", __subclass) and inspect.iscoroutinefunction(__subclass.close):
                 return True
         return super().__subclasshook__(__subclass)

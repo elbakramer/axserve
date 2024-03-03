@@ -22,10 +22,8 @@ service Active {
   rpc SetProperty(SetPropertyRequest) returns (SetPropertyResponse) {}
   rpc InvokeMethod(InvokeMethodRequest) returns (InvokeMethodResponse) {}
   rpc ConnectEvent(ConnectEventRequest) returns (ConnectEventResponse) {}
-  rpc DisconnectEvent(DisconnectEventRequest)
-      returns (DisconnectEventResponse) {}
-  rpc HandleEvent(stream HandleEventResponse)
-      returns (stream HandleEventRequest) {}
+  rpc DisconnectEvent(DisconnectEventRequest) returns (DisconnectEventResponse) {}
+  rpc HandleEvent(stream HandleEventResponse) returns (stream HandleEventRequest) {}
 }
 
 enum RequestContext {
@@ -42,6 +40,8 @@ message PropertyInfo {
   uint32 index = 1;
   string name = 2;
   string property_type = 3;
+  bool is_readable = 4;
+  bool is_writable = 5;
 }
 
 message ArgumentInfo {
@@ -130,9 +130,13 @@ message HandleEventRequest {
   uint32 index = 1;
   uint32 id = 2;
   repeated Variant arguments = 3;
+  bool is_ping = 4;
+  bool is_pong = 5;
 }
 
 message HandleEventResponse {
   uint32 index = 1;
   uint32 id = 2;
+  bool is_ping = 3;
+  bool is_pong = 4;
 }

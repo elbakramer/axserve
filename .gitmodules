@@ -1,18 +1,24 @@
-[submodule "third_party/googletest"]
-	path = third_party/googletest
-	url = https://github.com/google/googletest.git
-[submodule "third_party/zlib"]
-	path = third_party/zlib
-	url = https://github.com/zlib-ng/zlib-ng.git
 [submodule "third_party/abseil-cpp"]
 	path = third_party/abseil-cpp
 	url = https://github.com/abseil/abseil-cpp.git
-[submodule "third_party/protobuf"]
-	path = third_party/protobuf
-	url = https://github.com/protocolbuffers/protobuf.git
+	branch = 20240116.1
+[submodule "third_party/googletest"]
+	path = third_party/googletest
+	url = https://github.com/google/googletest.git
+	branch = v1.14.0
 [submodule "third_party/grpc"]
 	path = third_party/grpc
 	url = https://github.com/grpc/grpc.git
+	branch = v1.62.0
+[submodule "third_party/protobuf"]
+	path = third_party/protobuf
+	url = https://github.com/protocolbuffers/protobuf.git
+	branch = v25.3
 [submodule "third_party/qt"]
 	path = third_party/qt
 	url = https://code.qt.io/qt/qt5.git
+	branch = v6.6.2
+[submodule "third_party/zlib"]
+	path = third_party/zlib
+	url = https://github.com/zlib-ng/zlib-ng.git
+	branch = 2.1.6

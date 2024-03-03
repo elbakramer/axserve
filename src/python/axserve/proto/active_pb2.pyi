@@ -22,14 +22,18 @@ class DescribeRequest(_message.Message):
     def __init__(self, request_context: _Optional[_Union[RequestContext, str]] = ..., callback_event_index: _Optional[int] = ...) -> None: ...
 
 class PropertyInfo(_message.Message):
-    __slots__ = ["index", "name", "property_type"]
+    __slots__ = ["index", "name", "property_type", "is_readable", "is_writable"]
     INDEX_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     PROPERTY_TYPE_FIELD_NUMBER: _ClassVar[int]
+    IS_READABLE_FIELD_NUMBER: _ClassVar[int]
+    IS_WRITABLE_FIELD_NUMBER: _ClassVar[int]
     index: int
     name: str
     property_type: str
-    def __init__(self, index: _Optional[int] = ..., name: _Optional[str] = ..., property_type: _Optional[str] = ...) -> None: ...
+    is_readable: bool
+    is_writable: bool
+    def __init__(self, index: _Optional[int] = ..., name: _Optional[str] = ..., property_type: _Optional[str] = ..., is_readable: bool = ..., is_writable: bool = ...) -> None: ...
 
 class ArgumentInfo(_message.Message):
     __slots__ = ["name", "argument_type"]
@@ -191,19 +195,27 @@ class DisconnectEventResponse(_message.Message):
     def __init__(self, successful: bool = ...) -> None: ...
 
 class HandleEventRequest(_message.Message):
-    __slots__ = ["index", "id", "arguments"]
+    __slots__ = ["index", "id", "arguments", "is_ping", "is_pong"]
     INDEX_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     ARGUMENTS_FIELD_NUMBER: _ClassVar[int]
+    IS_PING_FIELD_NUMBER: _ClassVar[int]
+    IS_PONG_FIELD_NUMBER: _ClassVar[int]
     index: int
     id: int
     arguments: _containers.RepeatedCompositeFieldContainer[Variant]
-    def __init__(self, index: _Optional[int] = ..., id: _Optional[int] = ..., arguments: _Optional[_Iterable[_Union[Variant, _Mapping]]] = ...) -> None: ...
+    is_ping: bool
+    is_pong: bool
+    def __init__(self, index: _Optional[int] = ..., id: _Optional[int] = ..., arguments: _Optional[_Iterable[_Union[Variant, _Mapping]]] = ..., is_ping: bool = ..., is_pong: bool = ...) -> None: ...
 
 class HandleEventResponse(_message.Message):
-    __slots__ = ["index", "id"]
+    __slots__ = ["index", "id", "is_ping", "is_pong"]
     INDEX_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
+    IS_PING_FIELD_NUMBER: _ClassVar[int]
+    IS_PONG_FIELD_NUMBER: _ClassVar[int]
     index: int
     id: int
-    def __init__(self, index: _Optional[int] = ..., id: _Optional[int] = ...) -> None: ...
+    is_ping: bool
+    is_pong: bool
+    def __init__(self, index: _Optional[int] = ..., id: _Optional[int] = ..., is_ping: bool = ..., is_pong: bool = ...) -> None: ...

@@ -65,11 +65,13 @@ def RegQuery(
         bits, _ = platform.architecture()
     if isinstance(bits, int):
         if bits not in [64, 32]:
-            raise ValueError(f"Invalid bits: {bits}")
+            msg = f"Invalid bits: {bits}"
+            raise ValueError(msg)
         bits = f"{bits}bit"
     if isinstance(bits, str):
         if bits not in ["64bit", "32bit"]:
-            raise ValueError(f"Invalid bits: {bits}")
+            msg = f"Invalid bits: {bits}"
+            raise ValueError(msg)
 
     regview = {"64bit": "/reg:64", "32bit": "/reg:32"}[bits]
 
@@ -148,7 +150,7 @@ def CheckMachineFromCLSID(clsid: str) -> str | None:
         return WindowsMachine
     elif PlatformBits == "64bit":
         if CheckRegQueryCLSID(clsid, bits=32):
-            return WindowsMachine
+            return WindowsMachine32Bit
         elif CheckRegQueryProgID(clsid, bits=32):
-            return WindowsMachine
+            return WindowsMachine32Bit
     return None

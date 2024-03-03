@@ -16,8 +16,8 @@
 
 from __future__ import annotations
 
-from typing import AsyncIterable
-from typing import AsyncIterator
+from collections.abc import AsyncIterable
+from collections.abc import AsyncIterator
 from typing import TypeVar
 
 from axserve.aio.common.async_closeable_queue import AsyncCloseableQueue
@@ -28,7 +28,7 @@ T = TypeVar("T")
 
 
 class AsyncIterableQueue(AsyncCloseableQueue[T], AsyncIterable[T]):
-    async def next(self) -> T:
+    async def next(self) -> T:  # noqa: A003
         try:
             return await self.get()
         except QueueClosed as exc:

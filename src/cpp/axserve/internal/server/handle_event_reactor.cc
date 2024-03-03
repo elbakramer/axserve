@@ -93,7 +93,11 @@ void HandleEventReactor::OnDone() {
 
 void HandleEventReactor::OnReadDone(bool ok) {
   if (ok) {
-    {
+    if (m_response.is_ping()) {
+      HandleEventRequest pong_request;
+      pong_request.set_is_pong(true);
+      StartWrite(&pong_request);
+    } else {
       QMutexLocker<QMutex> lock(&m_mutex);
       int id = m_response.id();
       if (m_counters.contains(id)) {

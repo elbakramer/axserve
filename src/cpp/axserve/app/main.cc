@@ -14,8 +14,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#include <ranges>
-
 #include <Qt>
 #include <QtDebug>
 #include <QtLogging>
@@ -196,7 +194,8 @@ public:
       noGuiOptionArgs << "-" + name;
       noGuiOptionArgs << "--" + name;
     }
-    for (const QString &arg : args | std::views::reverse) {
+    for (auto it = args.crbegin(); it != args.crend(); it++) {
+      const QString &arg = *it;
       for (const QString &oarg : noGuiOptionArgs) {
         if (arg == oarg) {
           return true;
@@ -225,7 +224,8 @@ public:
       noTranslateOptionArgs << "-" + name;
       noTranslateOptionArgs << "--" + name;
     }
-    for (const QString &arg : args | std::views::reverse) {
+    for (auto it = args.crbegin(); it != args.crend(); it++) {
+      const QString &arg = *it;
       for (const QString &oarg : translateOptionArgs) {
         if (arg == oarg) {
           return true;

@@ -19,10 +19,10 @@ from __future__ import annotations
 import threading
 import time
 
-from axserve.client.stub import AxServeObject
 
+def test_dynamic_iexplorer():
+    from axserve.client.stub import AxServeObject
 
-def test_iexplorer():
     on_visible_fired = threading.Event()
 
     def OnVisible(visible):
@@ -37,5 +37,33 @@ def test_iexplorer():
         time.sleep(1)
 
 
+def test_declarative_iexplorer():
+    from axserve.client.descriptor import AxServeEvent
+    from axserve.client.descriptor import AxServeMethod
+    from axserve.client.descriptor import AxServeProperty
+    from axserve.client.stub import AxServeObject
+
+    class IExplorer(AxServeObject):
+        __CLSID__ = "InternetExplorer.Application"
+
+        OnVisible = AxServeEvent()
+        Visible = AxServeProperty()
+        Quit = AxServeMethod()
+
+    on_visible_fired = threading.Event()
+
+    def OnVisible(visible):
+        on_visible_fired.set()
+
+    with IExplorer() as iexplorer:
+        iexplorer.OnVisible.connect(OnVisible)
+        iexplorer.Visible = 1
+        fired = on_visible_fired.wait(10)
+        assert fired
+        iexplorer.Quit()
+        time.sleep(1)
+
+
 if __name__ == "__main__":
-    test_iexplorer()
+    test_dynamic_iexplorer()
+    test_declarative_iexplorer()

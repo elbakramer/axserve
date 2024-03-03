@@ -21,7 +21,6 @@ from queue import Full
 from queue import Queue
 from time import time
 from typing import Any
-from typing import Optional
 from typing import TypeVar
 
 from axserve.common.closeable import Closeable
@@ -30,21 +29,24 @@ from axserve.common.closeable import Closeable
 T = TypeVar("T")
 
 
-class Closed(Exception):
+class Closed(Exception):  # noqa: N818
     pass
 
 
 class CloseableQueue(Queue[T], Closeable):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        assert not hasattr(self, "_closed")
+        if hasattr(self, "_closed"):
+            msg = "Object already has member _closed"
+            raise RuntimeError(msg)
         self._closed = False
 
     def put(
         self,
         item: T,
+        *,
         block: bool = True,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
     ) -> None:
         with self.not_full:
             if self._closed:
@@ -57,12 +59,13 @@ class CloseableQueue(Queue[T], Closeable):
                     while self._qsize() >= self.maxsize:
                         self.not_full.wait()
                 elif timeout < 0:
-                    raise ValueError("'timeout' must be a non-negative number")
+                    msg = "'timeout' must be a non-negative number"
+                    raise ValueError(msg)
                 else:
                     endtime = time() + timeout
                     while self._qsize() >= self.maxsize:
                         remaining = endtime - time()
-                        if remaining <= 0.0:
+                        if remaining <= 0.0:  # noqa: PLR2004
                             raise Full
                         self.not_full.wait(remaining)
             self._put(item)
@@ -71,8 +74,9 @@ class CloseableQueue(Queue[T], Closeable):
 
     def get(
         self,
+        *,
         block: bool = True,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
     ) -> T:
         with self.not_empty:
             if not block:
@@ -82,12 +86,13 @@ class CloseableQueue(Queue[T], Closeable):
                 while not self._closed and not self._qsize():
                     self.not_empty.wait()
             elif timeout < 0:
-                raise ValueError("'timeout' must be a non-negative number")
+                msg = "'timeout' must be a non-negative number"
+                raise ValueError(msg)
             else:
                 endtime = time() + timeout
                 while not self._closed and not self._qsize():
                     remaining = endtime - time()
-                    if remaining <= 0.0:
+                    if remaining <= 0.0:  # noqa: PLR2004
                         raise Empty
                     self.not_empty.wait(remaining)
             if self._closed and not self._qsize():
@@ -98,8 +103,9 @@ class CloseableQueue(Queue[T], Closeable):
 
     def close(
         self,
+        *,
         block: bool = True,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
         idempotent: bool = True,
         immediate: bool = False,
     ) -> None:
@@ -119,12 +125,13 @@ class CloseableQueue(Queue[T], Closeable):
                             break
                         self.not_full.wait()
                 elif timeout < 0:
-                    raise ValueError("'timeout' must be a non-negative number")
+                    msg = "'timeout' must be a non-negative number"
+                    raise ValueError(msg)
                 else:
                     endtime = time() + timeout
                     while self._qsize() >= self.maxsize:
                         remaining = endtime - time()
-                        if remaining <= 0.0:
+                        if remaining <= 0.0:  # noqa: PLR2004
                             if immediate:
                                 break
                             raise Full

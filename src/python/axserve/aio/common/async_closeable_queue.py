@@ -32,7 +32,9 @@ T = TypeVar("T")
 class AsyncCloseableQueue(Queue[T], AsyncCloseable):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        assert not hasattr(self, "_closed")
+        if hasattr(self, "_closed"):
+            msg = "Object already has member named: _closed"
+            raise RuntimeError(msg)
         self._closed = False
 
     async def put(self, item):

@@ -16,7 +16,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}" CACHE PATH "Det
 set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_LIST_DIR}/cmake/toolchain/toolchain-msvc-auto.cmake" CACHE STRING "CMake toolchain file")
 
 # project definition
-project(AxServe VERSION 0.1.4 LANGUAGES CXX)
+project(AxServe VERSION 0.1.5 LANGUAGES CXX)
 
 # cache variable for executable's name
 string(TOLOWER "${PROJECT_NAME}" PROJECT_NAME_LOWERCASE)
@@ -63,8 +63,8 @@ file(GLOB_RECURSE TS_FILES
 # gather all project sources
 set(PROJECT_SOURCE_FILES ${CXX_FILES} ${PROTO_FILES} ${TS_FILES})
 
-# use cxx standard 20
-set(CMAKE_CXX_STANDARD 20 CACHE STRING "C++ compiler standard")
+# use cxx standard 17
+set(CMAKE_CXX_STANDARD 17 CACHE STRING "C++ compiler standard")
 set(CMAKE_CXX_STANDARD_REQUIRED ON CACHE BOOL "C++ compiler standard required")
 
 # cache variables for dependency resolution

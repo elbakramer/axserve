@@ -16,7 +16,7 @@ if(AXSERVE_ABSL_PROVIDER STREQUAL "module")
 
     if(NOT EXISTS "${ABSL_SOURCE_DIR}/CMakeLists.txt")
         set(ABSL_GIT_REPOSITORY "https://github.com/abseil/abseil-cpp.git")
-        set(ABSL_GIT_TAG "20230802.1")
+        set(ABSL_GIT_TAG "20240116.1")
     endif()
 
     set(ABSL_CMAKE_COMMAND "${CMAKE_COMMAND}")
@@ -32,10 +32,6 @@ if(AXSERVE_ABSL_PROVIDER STREQUAL "module")
             "--build" "${ABSL_BINARY_DIR}"
             "--parallel")
     endif()
-
-    set(ABSL_PATCH_COMMAND
-        git restore * &&
-        git apply --ignore-whitespace "${CMAKE_CURRENT_LIST_DIR}/../../patches/absl-20230802.1.patch")
 
     include("${CMAKE_CURRENT_LIST_DIR}/googletest.cmake")
     set(ABSL_CMAKE_CACHE_ARGS

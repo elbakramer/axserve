@@ -65,9 +65,9 @@ void AbstractMessageHandler::setMessagePattern(const QString &pattern) {
 }
 
 QString AbstractMessageHandler::formatLogMessage(
-    QtMsgType type, const QMessageLogContext &context, const QString &str
+    QtMsgType type, const QMessageLogContext &context, const QString &msg
 ) {
-  return qFormatLogMessage(type, context, str);
+  return qFormatLogMessage(type, context, msg);
 }
 
 void AbstractMessageHandler::setupDefaultMessagePattern() {
@@ -109,36 +109,41 @@ void AbstractMessageHandler::minimumMessageTypeCategoryFilter(
     return;
   }
   switch (m_minimumMessageType) {
-  case QtMsgType::QtDebugMsg:
+  case QtMsgType::QtDebugMsg: {
     category->setEnabled(QtMsgType::QtDebugMsg, true);
     category->setEnabled(QtMsgType::QtInfoMsg, true);
     category->setEnabled(QtMsgType::QtWarningMsg, true);
     category->setEnabled(QtMsgType::QtCriticalMsg, true);
     break;
-  case QtMsgType::QtInfoMsg:
+  }
+  case QtMsgType::QtInfoMsg: {
     category->setEnabled(QtMsgType::QtDebugMsg, false);
     category->setEnabled(QtMsgType::QtInfoMsg, true);
     category->setEnabled(QtMsgType::QtWarningMsg, true);
     category->setEnabled(QtMsgType::QtCriticalMsg, true);
     break;
-  case QtMsgType::QtWarningMsg:
+  }
+  case QtMsgType::QtWarningMsg: {
     category->setEnabled(QtMsgType::QtDebugMsg, false);
     category->setEnabled(QtMsgType::QtInfoMsg, false);
     category->setEnabled(QtMsgType::QtWarningMsg, true);
     category->setEnabled(QtMsgType::QtCriticalMsg, true);
     break;
-  case QtMsgType::QtCriticalMsg:
+  }
+  case QtMsgType::QtCriticalMsg: {
     category->setEnabled(QtMsgType::QtDebugMsg, false);
     category->setEnabled(QtMsgType::QtInfoMsg, false);
     category->setEnabled(QtMsgType::QtWarningMsg, false);
     category->setEnabled(QtMsgType::QtCriticalMsg, true);
     break;
-  case QtMsgType::QtFatalMsg:
+  }
+  case QtMsgType::QtFatalMsg: {
     category->setEnabled(QtMsgType::QtDebugMsg, false);
     category->setEnabled(QtMsgType::QtInfoMsg, false);
     category->setEnabled(QtMsgType::QtWarningMsg, false);
     category->setEnabled(QtMsgType::QtCriticalMsg, false);
     break;
+  }
   }
 }
 

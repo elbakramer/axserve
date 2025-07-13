@@ -1,33 +1,44 @@
-cmake_policy(SET CMP0007 NEW)
-cmake_policy(SET CMP0011 NEW)
+cmake_minimum_required(VERSION 3.27)
 
-set(_CMAKE_ARGS "")
+include_guard(GLOBAL)
+
+block(SCOPE_FOR POLICIES)
+cmake_policy(SET CMP0007 NEW)
+
+if(NOT CMAKE_SCRIPT_MODE_FILE STREQUAL CMAKE_CURRENT_LIST_FILE)
+    message(DEBUG "Not running in script mode")
+    return()
+endif()
+
+set(_CMAKE_ARGS)
 foreach(_INDEX RANGE "${CMAKE_ARGC}")
     list(APPEND _CMAKE_ARGS "${CMAKE_ARGV${_INDEX}}")
 endforeach()
+
 set(_CMAKE_UNPARSED_SEP "--")
 list(FIND _CMAKE_ARGS "${_CMAKE_UNPARSED_SEP}" _CMAKE_UNPARSED_SEP_LOC)
+
+if(_CMAKE_UNPARSED_SEP_LOC LESS 0)
+    message(DEBUG "No arguments given")
+    return()
+endif()
+
 math(EXPR _CMAKE_UNPARSED_BEGIN "${_CMAKE_UNPARSED_SEP_LOC}+1")
 math(EXPR _CMAKE_UNPARSED_LENGTH "${CMAKE_ARGC}-${_CMAKE_UNPARSED_SEP_LOC}")
+
 list(SUBLIST _CMAKE_ARGS "${_CMAKE_UNPARSED_BEGIN}" "${_CMAKE_UNPARSED_LENGTH}" _CMAKE_UNPARSED_ARGS)
 
-if(NOT VS_SETUP)
-    include("${CMAKE_CURRENT_LIST_DIR}/setup-msvc-vars.cmake")
+if(NOT _CMAKE_UNPARSED_ARGS)
+    message(DEBUG "No arguments given")
+    return()
 endif()
 
-if(VS_SETUP)
-    message(STATUS "Running command with MSVC env vars")
-else()
-    message(STATUS "Running command without MSVC env vars")
-endif()
-
-set(_CMAKE_UNPARSED_ARGS_PRINTABLE ${_CMAKE_UNPARSED_ARGS})
-list(TRANSFORM _CMAKE_UNPARSED_ARGS_PRINTABLE PREPEND "\"")
-list(TRANSFORM _CMAKE_UNPARSED_ARGS_PRINTABLE APPEND "\"")
-list(JOIN _CMAKE_UNPARSED_ARGS_PRINTABLE " " _CMAKE_UNPARSED_ARGS_PRINTABLE)
-message(STATUS "Running: ${_CMAKE_UNPARSED_ARGS_PRINTABLE}")
+include("${CMAKE_CURRENT_LIST_DIR}/setup-msvc-vars.cmake")
+setup_msvc_vars()
 
 execute_process(
     COMMAND ${_CMAKE_UNPARSED_ARGS}
     COMMAND_ERROR_IS_FATAL ANY
 )
+
+endblock()

@@ -56,6 +56,7 @@ class CMakeBuildHook(BuildHookInterface):
             generator = build.get("generator")
             config = build.get("config")
             system_processor = build.get("system-processor")
+            toolchain = build.get("toolchain")
             runtime_output_dir = build.get("runtime-output-dir")
             library_output_dir = build.get("library-output-dir")
             cmake_args = build.get("args", [])
@@ -81,6 +82,11 @@ class CMakeBuildHook(BuildHookInterface):
                 cmake_configure_cmd += [
                     "-G",
                     generator,
+                ]
+            if toolchain:
+                cmake_configure_cmd += [
+                    "--toolchain",
+                    toolchain,
                 ]
             if config:
                 cmake_configure_cmd += [
@@ -135,7 +141,7 @@ class ProtocBuildHook(BuildHookInterface):
     PLUGIN_NAME = "protoc"
 
     def check_command(self, cmd):
-        return subprocess.check_call(cmd)
+        return subprocess.check_call(cmd, shell=False)
 
     def _fix_import_in_grpc_py(self, filename):
         with open(filename, "r+", encoding="utf-8") as f:
@@ -153,6 +159,15 @@ class ProtocBuildHook(BuildHookInterface):
         pass
 
     def initialize(self, version: str, build_data: dict[str, Any]) -> None:
+        protoc_cmds = [
+            sys.executable,
+            "-m",
+            "grpc_tools.protoc",
+        ]
+        protoc_cmds = [
+            "./build/amd64/protobuf-release/bin/protoc.exe",
+            "--plugin=protoc-gen-grpc_python=./build/amd64/grpc-release/bin/grpc_python_plugin.exe",
+        ]
         generates = self.config.get("generates", [])
         for generate in generates:
             sources = generate.get("sources", [])
@@ -160,7 +175,7 @@ class ProtocBuildHook(BuildHookInterface):
             outs = generate.get("outs", ["python", "pyi", "grpc_python"])
             out_dir = generate.get("out-dir", ".")
             protoc_args = [f"-I{i}" for i in include_dirs] + [f"--{out}_out={out_dir}" for out in outs] + sources
-            self.check_command([sys.executable, "-m", "grpc_tools.protoc", *protoc_args])
+            self.check_command(protoc_cmds + protoc_args)
             for source in sources:
                 source_path = Path(source)
                 grpc_py_filename = source_path.stem + "_pb2_grpc.py"
@@ -179,12 +194,12 @@ class CustomBuildHook(BuildHookInterface):
         super().__init__(*args, **kwargs)
 
         if hasattr(self, "_hooks"):
-            msg = "Attribute alreay exists: _hooks"
+            msg = "Attribute already exists: _hooks"
             raise RuntimeError(msg)
 
         self._hooks: list[BuildHookInterface] = [
-            ProtocBuildHook(*args, **kwargs),
             CMakeBuildHook(*args, **kwargs),
+            ProtocBuildHook(*args, **kwargs),
         ]
 
     def clean(self, versions: list[str]) -> None:

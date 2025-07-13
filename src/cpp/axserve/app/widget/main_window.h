@@ -22,37 +22,64 @@
 #include <Qt>
 
 #include <QCloseEvent>
+#include <QIcon>
 #include <QMainWindow>
-#include <QStackedWidget>
+#include <QMenu>
+#include <QObject>
 #include <QSystemTrayIcon>
 #include <QWidget>
 
-#include "axserve/app/model/start_server_configuration.h"
-#include "axserve/app/widget/running_server_widget.h"
-#include "axserve/app/widget/start_server_widget.h"
+#include "axserve/app/model/parsed_config.h"
+
+class MainWindow;
+
+class MainSystemTrayIconMenu : public QMenu {
+  Q_OBJECT
+
+private:
+  MainWindow *m_main;
+  QAction *m_restoreAction;
+  QAction *m_exitAction;
+
+public:
+  MainSystemTrayIconMenu(MainWindow *main, QWidget *parent = nullptr);
+};
+
+class MainSystemTrayIcon : public QSystemTrayIcon {
+  Q_OBJECT
+
+private:
+  QIcon m_icon;
+  MainWindow *m_main;
+  MainSystemTrayIconMenu *m_menu;
+
+public:
+  MainSystemTrayIcon(MainWindow *main, QObject *parent = nullptr);
+
+public slots:
+  void activate(QSystemTrayIcon::ActivationReason reason);
+};
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
 
+private:
+  QIcon m_icon;
+  MainSystemTrayIcon *m_trayIcon;
+  ParsedConfig m_config;
+
 public:
   MainWindow(
-      QWidget *parent = nullptr, Qt::WindowFlags flags = Qt::WindowFlags()
+      ParsedConfig config = {}, QWidget *parent = nullptr,
+      Qt::WindowFlags flags = Qt::WindowFlags()
   );
 
-private:
-  QStackedWidget *m_central;
-  QSystemTrayIcon *m_trayIcon;
-
-  StartServerWidget *m_start;
-  RunningServerWidget *m_running;
+public slots:
+  void showRaised();
 
 protected:
   void closeEvent(QCloseEvent *event) override;
-
-public slots:
-  void onInitialStartRequest(const StartServerConfiguration &conf);
-  void onStartRequest(const StartServerConfiguration &conf);
-  void onTrayIconActivate(QSystemTrayIcon::ActivationReason reason);
+  void changeEvent(QEvent *event) override;
 };
 
 #endif

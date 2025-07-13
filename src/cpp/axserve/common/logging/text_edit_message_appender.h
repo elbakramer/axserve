@@ -35,7 +35,7 @@ public:
   PlainTextEditMessageAppender(QPlainTextEdit *edit);
 
   void operator()(
-      QtMsgType type, const QMessageLogContext &context, const QString &str
+      QtMsgType type, const QMessageLogContext &context, const QString &msg
   ) override;
 };
 

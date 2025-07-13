@@ -24,13 +24,14 @@ async def test_dynamic_iexplorer_async():
 
     on_visible_fired = asyncio.Event()
 
-    async def OnVisible(visible):
+    async def on_visible(visible):
         on_visible_fired.set()
 
     async with AxServeObject("InternetExplorer.Application") as iexplorer:
-        await iexplorer.OnVisible.connect(OnVisible)
+        await iexplorer.OnVisible.connect(on_visible)
         await iexplorer.__setattr__("Visible", 1)  # normal assignment syntax won't return awaitable
-        fired = await on_visible_fired.wait()
+        async with asyncio.timeout(10):
+            fired = await on_visible_fired.wait()
         assert fired
         await iexplorer.Quit()
         await asyncio.sleep(1)
@@ -51,13 +52,14 @@ async def test_declarative_iexplorer_async():
 
     on_visible_fired = asyncio.Event()
 
-    async def OnVisible(visible):
+    async def on_visible(visible):
         on_visible_fired.set()
 
     async with IExplorer() as iexplorer:
-        await iexplorer.OnVisible.connect(OnVisible)
+        await iexplorer.OnVisible.connect(on_visible)
         await iexplorer.__setattr__("Visible", 1)  # normal assignment syntax won't return awaitable
-        fired = await on_visible_fired.wait()
+        async with asyncio.timeout(10):
+            fired = await on_visible_fired.wait()
         assert fired
         await iexplorer.Quit()
         await asyncio.sleep(1)

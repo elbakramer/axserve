@@ -21,20 +21,24 @@ from collections.abc import Callable
 from typing import Any
 from typing import ParamSpec
 from typing import Protocol
+from typing import TypeVar
 
 from axserve.common.protocol import check_names_in_mro
 
 
 P = ParamSpec("P")
 
+C_co = TypeVar("C_co", covariant=True)
+D_co = TypeVar("D_co", covariant=True)
 
-class Connectable(Protocol[P]):
+
+class Connectable(Protocol[P, C_co, D_co]):
     @abstractmethod
-    def connect(self, handler: Callable[P, Any]) -> None:
+    def connect(self, handler: Callable[P, Any]) -> C_co | None:
         raise NotImplementedError()
 
     @abstractmethod
-    def disconnect(self, handler: Callable[P, Any]) -> None:
+    def disconnect(self, handler: Callable[P, Any]) -> D_co | None:
         raise NotImplementedError()
 
     @classmethod

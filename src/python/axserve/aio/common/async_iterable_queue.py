@@ -28,7 +28,7 @@ T = TypeVar("T")
 
 
 class AsyncIterableQueue(AsyncCloseableQueue[T], AsyncIterable[T]):
-    async def next(self) -> T:  # noqa: A003
+    async def next(self) -> T:
         try:
             return await self.get()
         except QueueClosed as exc:

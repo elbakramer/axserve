@@ -39,5 +39,5 @@ def method(f: Callable[Concatenate[T, P], R]):
     return AxServeMethod(f)
 
 
-def property(f: Callable[Concatenate[T, P], R]):
+def property(f: Callable[Concatenate[T, P], R]):  # noqa: A001
     return AxServeProperty(f)

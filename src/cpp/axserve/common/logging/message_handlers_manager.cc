@@ -48,10 +48,10 @@ MessageHandlersManager *MessageHandlersManager::instance() {
 }
 
 void MessageHandlersManager::messageHandler(
-    QtMsgType type, const QMessageLogContext &context, const QString &str
+    QtMsgType type, const QMessageLogContext &context, const QString &msg
 ) {
   MessageHandlersManager *manager = instance();
-  return (*manager)(type, context, str);
+  return (*manager)(type, context, msg);
 }
 
 void MessageHandlersManager::registerHandler(QtMessageHandler handler) {
@@ -79,16 +79,16 @@ void MessageHandlersManager::unregisterHandler(
 }
 
 void MessageHandlersManager::operator()(
-    QtMsgType type, const QMessageLogContext &context, const QString &str
+    QtMsgType type, const QMessageLogContext &context, const QString &msg
 ) {
   QMutexLocker lock(&m_mutex);
   for (auto &handler : m_handler_fns) {
-    handler(type, context, str);
+    handler(type, context, msg);
   }
   for (auto &maybe_handler : m_handlers) {
     auto handler = maybe_handler.toStrongRef();
     if (handler) {
-      (*handler)(type, context, str);
+      (*handler)(type, context, msg);
     } else {
       m_handlers.removeAll(handler);
     }

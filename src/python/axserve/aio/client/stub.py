@@ -17,167 +17,258 @@
 from __future__ import annotations
 
 import asyncio
+import platform
+import typing
 
-from collections.abc import AsyncIterator
-from collections.abc import Callable
+from asyncio import Lock
 from collections.abc import Iterable
+from collections.abc import MutableMapping
+from types import TracebackType
+from typing import ClassVar
 
 import grpc
 
-from axserve.aio.client.abstract import AbstractAxServeObject
+from grpc.aio import Channel
+
 from axserve.aio.client.component import AxServeEventContextManager
 from axserve.aio.client.component import AxServeEventHandlersManager
-from axserve.aio.client.component import AxServeEventLoop
 from axserve.aio.client.component import AxServeEventLoopManager
 from axserve.aio.client.component import AxServeEventStreamManager
+from axserve.aio.client.component import AxServeInstancesManager
 from axserve.aio.client.component import AxServeMembersManager
-from axserve.aio.client.component import AxServeStubManager
-from axserve.aio.client.descriptor import AxServeEvent
-from axserve.aio.client.descriptor import AxServeMember
+from axserve.aio.client.component import AxServeMembersManagerCache
 from axserve.aio.client.descriptor import AxServeMemberType
-from axserve.aio.client.descriptor import AxServeMethod
-from axserve.aio.client.descriptor import AxServeProperty
-from axserve.aio.common.async_aquireable import AsyncAquireable
+from axserve.aio.common.async_initializable import AsyncInitializable
+from axserve.aio.server.process import AxServeServerProcess
+from axserve.aio.server.process import CreateAxServeServerProcess
+from axserve.common.registry import CheckMachineFromCLSID
+from axserve.common.socket import FindFreePort
 from axserve.proto import active_pb2
-from axserve.proto import active_pb2_grpc
+from axserve.proto.active_pb2_grpc import ActiveStub
 
 
-class AxServeObject(AbstractAxServeObject):
-    async def __ainit__(
-        self,
-        channel: grpc.Channel | str | int | None = None,
-        *,
-        channel_ready_timeout: float | None = None,
-    ):
-        self._stub_manager = AxServeStubManager(channel)
-        await self._stub_manager._initialized()
-        await self._stub_manager._channel_ready()
+class AxServeObjectInternals:
+    _instance: str
+    _clsid: str
+    _client: AxServeClient
+    _members_manager: AxServeMembersManager
+    _event_handlers_manager: AxServeEventHandlersManager
 
-        self._event_context_manager = AxServeEventContextManager()
-        self._event_handlers_manager = AxServeEventHandlersManager()
 
-        stub = self._stub_manager._get_stub()
-        current_handle_event = self._event_context_manager._get_current_handle_event()
+class AxServeClient(AsyncInitializable):
+    _clients: ClassVar[MutableMapping[str, AxServeClient]] = {}
+    _clients_lock: ClassVar[Lock] = Lock()
 
-        self._event_stream_manager = AxServeEventStreamManager(stub)
-        self._members_manager = AxServeMembersManager(stub, current_handle_event)
-        await self._members_manager._initialized()
+    _stub: ActiveStub
+    _instances_manager: AxServeInstancesManager
+    _event_context_manager: AxServeEventContextManager
+    _event_stream_manager: AxServeEventStreamManager
+    _event_loop_manager: AxServeEventLoopManager
+    _members_managers: AxServeMembersManagerCache
 
-        self._event_loop_manager = AxServeEventLoopManager(self)
-        self._event_loop_manager.start()
+    _managed_channel: Channel | None = None
+    _managed_process: AxServeServerProcess | None = None
+
+    @classmethod
+    async def instance(cls, machine: str | None = None):
+        if not machine:
+            machine = platform.machine()
+        if machine not in cls._clients:
+            async with cls._clients_lock:
+                if machine not in cls._clients:
+                    port = FindFreePort()
+                    address = f"localhost:{port}"
+                    process = await CreateAxServeServerProcess(address, machine=machine)
+                    channel = grpc.aio.insecure_channel(address)
+                    client = AxServeClient(channel)
+                    await client.__aenter__()
+                    client._managed_channel = channel
+                    client._managed_process = process
+                    cls._clients[machine] = client
+        client = cls._clients[machine]
+        return client
 
     def __init__(
         self,
-        channel: grpc.Channel | str | int | None = None,
-        *,
-        channel_ready_timeout: float | None = None,
-    ):
-        self.__dict__["_members_manager"] = None
+        channel: Channel,
+        timeout: float | None = None,
+    ) -> None:
+        AsyncInitializable.__init__(self, channel, timeout=timeout)
 
-        if channel is None and hasattr(self, "__CLSID__"):
-            channel = self.__CLSID__
+    async def __ainit__(
+        self,
+        channel: Channel,
+        timeout: float | None = None,
+    ) -> None:
+        if not timeout:
+            timeout = 15
 
-        if channel is None:
-            msg = "Cannot specify channel"
-            raise ValueError(msg)
+        self._stub = ActiveStub(channel)
+        self._instances_manager = AxServeInstancesManager()
 
-        if channel_ready_timeout is None:
-            channel_ready_timeout = 10.0
+        async with asyncio.timeout(timeout):
+            await channel.channel_ready()
 
-        self._stub_manager: AxServeStubManager | None = None
-        self._event_context_manager: AxServeEventContextManager | None = None
-        self._event_handlers_manager: AxServeEventHandlersManager | None = None
-        self._event_stream_manager: AxServeEventStreamManager | None = None
-        self._members_manager: AxServeMembersManager | None = None
-        self._event_loop_manager: AxServeEventLoopManager | None = None
+        self._event_context_manager = AxServeEventContextManager()
+        self._event_stream_manager = AxServeEventStreamManager(self._stub)
+        self._event_loop_manager = AxServeEventLoopManager(
+            self._instances_manager,
+            self._event_context_manager,
+            self._event_stream_manager,
+        )
+        self._members_managers = AxServeMembersManagerCache(
+            self._stub,
+            self._event_context_manager,
+        )
 
-        self._init_coro = self.__ainit__(channel, channel_ready_timeout=channel_ready_timeout)
-        self._init_task = asyncio.create_task(self._init_coro)
+        self._event_loop_manager.start()
 
-    async def _initialized(self) -> None:
-        await self._init_task
+    async def _create_instance(self, c: str) -> str:
+        request = active_pb2.CreateRequest()
+        request.clsid = c
+        response = await self._stub.Create(request)
+        response = typing.cast(active_pb2.CreateResponse, response)
+        instance = response.instance
+        return instance
 
-    def _get_stub(self) -> active_pb2_grpc.ActiveStub:
-        return self._stub_manager._get_stub()
+    async def _destroy_instance(self, i: str) -> bool:
+        request = active_pb2.DestroyRequest()
+        request.instance = i
+        response = await self._stub.Destroy(request)
+        response = typing.cast(active_pb2.DestroyResponse, response)
+        return response.successful
 
-    def _get_property(self, index: int) -> AxServeProperty:
-        return self._members_manager._get_property(index)
+    async def _create_internals(self, c: str) -> AxServeObjectInternals:
+        i = await self._create_instance(c)
+        members_manager = await self._members_managers._get_members_manager(c, i)
+        event_handlers_manager = AxServeEventHandlersManager()
+        internals = AxServeObjectInternals()
+        internals._instance = i
+        internals._clsid = c
+        internals._client = self
+        internals._members_manager = members_manager
+        internals._event_handlers_manager = event_handlers_manager
+        return internals
 
-    def _get_method(self, index: int) -> AxServeMethod:
-        return self._members_manager._get_method(index)
+    async def _initialize_internals(self, o: AxServeObject, c: str) -> None:
+        i = await self._create_internals(c)
+        o.__dict__["__axserve__"] = i
+        self._instances_manager._register_instance(i._instance, o)
 
-    def _get_event(self, index: int) -> AxServeEvent:
-        return self._members_manager._get_event(index)
+    async def create(self, c: str) -> AxServeObject:
+        o = AxServeObject(c, self)
+        return o
 
-    def _has_member_name(self, name: str) -> bool:
-        return self._members_manager._has_member_name(name)
+    async def destroy(self, o: AxServeObject) -> None:
+        if not o.__axserve__:
+            return
+        instance = o.__axserve__._instance
+        if not self._instances_manager._has_instance(instance):
+            return
+        if not await self._destroy_instance(instance):
+            msg = "Failed to destroy the axserve object"
+            raise RuntimeError(msg)
+        self._instances_manager._unregister_instance(instance)
 
-    def _get_member_by_name(self, name: str) -> AxServeMember:
-        return self._members_manager._get_member_by_name(name)
-
-    def _get_member_names(self) -> list[str]:
-        return self._members_manager._get_member_names()
-
-    def _get_current_handle_event(self) -> active_pb2.HandleEventRequest | None:
-        return self._event_context_manager._get_current_handle_event()
-
-    def _get_handle_event_context_stack(self) -> list[active_pb2.HandleEventRequest]:
-        return self._event_context_manager._get_handle_event_context_stack()
-
-    def _get_event_handlers(self, index: int) -> list[Callable]:
-        return self._event_handlers_manager._get_event_handlers(index)
-
-    def _get_event_handlers_lock(self, index: int) -> AsyncAquireable:
-        return self._event_handlers_manager._get_event_handlers_lock(index)
-
-    def _get_handle_event_requests(self) -> AsyncIterator[active_pb2.HandleEventRequest]:
-        return self._event_stream_manager._get_handle_event_requests()
-
-    async def _put_handle_event_response(self, response: active_pb2.HandleEventResponse) -> None:
-        return await self._event_stream_manager._put_handle_event_response(response)
-
-    async def _close_event_stream(self) -> None:
-        return await self._event_stream_manager._close_event_stream()
-
-    def _cancel_event_stream(self) -> None:
-        return self._event_stream_manager._cancel_event_stream()
-
-    def __getattr__(self, name):
-        if self._members_manager and self._members_manager._has_member_name(name):
-            return self._members_manager._get_member_by_name(name).__get__(self)
-        return super().__getattribute__(name)
-
-    def __setattr__(self, name, value):
-        if self._members_manager and self._members_manager._has_member_name(name):
-            return self._members_manager._get_member_by_name(name).__set__(self, value)
-        return super().__setattr__(name, value)
-
-    def __getitem__(self, name) -> AxServeMemberType:
-        if self._members_manager and self._members_manager._has_member_name(name):
-            member = self._members_manager._get_member_by_name(name)
-            return AxServeMemberType(member, self)
-        raise KeyError(name)
-
-    def __dir__(self) -> Iterable[str]:
-        attrs = super().__dir__()
-        attrs = set(attrs)
-        if self._members_manager:
-            members = self._members_manager._get_member_names()
-            attrs = set(attrs) | set(members)
-        attrs = list(attrs)
-        return attrs
-
-    async def close(self):
+    async def close(self, timeout: float | None = None) -> None:
         if self._event_loop_manager:
             await self._event_loop_manager.stop()
         if self._event_stream_manager:
             await self._event_stream_manager._close_event_stream()
-        if self._stub_manager:
-            await self._stub_manager._close_managed_channel()
+        if self._managed_channel:
+            await self._managed_channel.close()
+        if self._managed_process:
+            try:
+                self._managed_process.terminate()
+            except ProcessLookupError:
+                pass
+            async with asyncio.timeout(timeout):
+                await self._managed_process.wait()
 
     async def __aenter__(self):
-        await self._initialized()
+        await self.__async__._initialized.wait()
         return self
 
-    async def __aexit__(self, exc_type, exc_value, traceback):
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        exc_traceback: TracebackType | None,
+    ) -> None:
         await self.close()
+
+
+class AxServeObject(AsyncInitializable):
+    __axserve__: AxServeObjectInternals | None = None
+
+    def __init__(
+        self,
+        c: str | None = None,
+        client: AxServeClient | None = None,
+    ) -> None:
+        AsyncInitializable.__init__(self, c=c, client=client)
+
+    async def __ainit__(
+        self,
+        c: str | None = None,
+        client: AxServeClient | None = None,
+    ) -> None:
+        if not c and hasattr(self, "__CLSID__"):
+            c = self.__CLSID__
+        if not c:
+            return
+        if not client:
+            machine = CheckMachineFromCLSID(c)
+            client = await AxServeClient.instance(machine)
+        await client._initialize_internals(self, c)
+
+    def __getitem__(self, name) -> AxServeMemberType:
+        if (
+            self.__axserve__
+            and self.__axserve__._members_manager
+            and self.__axserve__._members_manager._has_member_name(name)
+        ):
+            member = self.__axserve__._members_manager._get_member_by_name(name)
+            return AxServeMemberType(member, self)
+        raise KeyError(name)
+
+    def __getattr__(self, name):
+        if (
+            self.__axserve__
+            and self.__axserve__._members_manager
+            and self.__axserve__._members_manager._has_member_name(name)
+        ):
+            return self.__axserve__._members_manager._get_member_by_name(name).__get__(self)
+        return super().__getattribute__(name)
+
+    def __setattr__(self, name, value):  # type: ignore
+        if (
+            self.__axserve__
+            and self.__axserve__._members_manager
+            and self.__axserve__._members_manager._has_member_name(name)
+        ):
+            return self.__axserve__._members_manager._get_member_by_name(name).__set__(self, value)
+        return super().__setattr__(name, value)
+
+    def __dir__(self) -> Iterable[str]:
+        if self.__axserve__ and self.__axserve__._members_manager:
+            members = self.__axserve__._members_manager._get_member_names()
+            attrs = super().__dir__()
+            attrs = set(attrs) | set(members)
+            attrs = list(attrs)
+            return attrs
+        return super().__dir__()
+
+    async def __aenter__(self):
+        await self.__async__._initialized.wait()
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        exc_traceback: TracebackType | None,
+    ) -> None:
+        if not self.__axserve__:
+            return
+        await self.__axserve__._client._destroy_instance(self.__axserve__._instance)

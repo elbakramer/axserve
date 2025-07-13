@@ -21,9 +21,9 @@ PlainTextEditMessageAppender::PlainTextEditMessageAppender(QPlainTextEdit *edit)
       m_edit(edit) {}
 
 void PlainTextEditMessageAppender::operator()(
-    QtMsgType type, const QMessageLogContext &context, const QString &str
+    QtMsgType type, const QMessageLogContext &context, const QString &msg
 ) {
-  QString fmt = formatLogMessage(type, context, str);
+  QString fmt = formatLogMessage(type, context, msg);
   m_edit->appendPlainText(fmt);
   m_edit->moveCursor(QTextCursor::StartOfLine);
 }

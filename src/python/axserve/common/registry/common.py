@@ -143,6 +143,18 @@ def GetCLSIDFromString(s: str, bits: str | int | None = None) -> str | None:
         return clsid
 
 
+def CheckMachine(machine: str | None = None) -> str:
+    if not machine:
+        machine = PlatformMachine
+    if machine in HostToWindowsMachineMapping:
+        machine = HostToWindowsMachineMapping[machine]
+    elif machine.upper() in HostToWindowsMachineMapping:
+        machine = HostToWindowsMachineMapping[machine.upper()]
+    elif machine.lower() in HostToWindowsMachineMapping:
+        machine = HostToWindowsMachineMapping[machine.lower()]
+    return machine
+
+
 def CheckMachineFromCLSID(clsid: str) -> str | None:
     if CheckRegQueryCLSID(clsid):
         return WindowsMachine

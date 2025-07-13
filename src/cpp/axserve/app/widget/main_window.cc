@@ -16,66 +16,74 @@
 
 #include "main_window.h"
 
-#include <Qt>
-#include <QtDebug>
-#include <QtLogging>
-
-#include <QAction>
 #include <QCoreApplication>
-#include <QIcon>
-#include <QMainWindow>
-#include <QMenu>
-#include <QMessageBox>
-#include <QStackedWidget>
-#include <QString>
 #include <QStyle>
-#include <QSystemTrayIcon>
-#include <QWidget>
+#include <QTimer>
 
-#include "axserve/app/config.h"
-
-MainWindow::MainWindow(QWidget *parent, Qt::WindowFlags flags)
-    : QMainWindow(parent, flags) {
-
-  // create and set central widget
-  m_central = new QStackedWidget(this);
-  setCentralWidget(m_central);
-
-  // add start server widget as default central widget
-  m_start = new StartServerWidget(this);
-  m_central->addWidget(m_start);
-  m_central->setCurrentWidget(m_start);
+MainSystemTrayIconMenu::MainSystemTrayIconMenu(
+    MainWindow *main, QWidget *parent
+)
+    : QMenu(parent),
+      m_main(main) {
+  m_restoreAction = addAction(tr("Restore"));
+  m_exitAction = addAction(tr("Exit"));
   connect(
-      m_start, &StartServerWidget::startRequested, this,
-      &MainWindow::onStartRequest
+      m_restoreAction, &QAction::triggered, m_main, &MainWindow::showRaised
   );
-
-  // create system tray icon
-  m_trayIcon = new QSystemTrayIcon(this);
-  QMenu *menu = new QMenu(this);
-  QAction *exitAction = menu->addAction(tr("Exit"));
-  m_trayIcon->setContextMenu(menu);
   connect(
-      exitAction, &QAction::triggered, QCoreApplication::instance(),
+      m_exitAction, &QAction::triggered, QCoreApplication::instance(),
       &QCoreApplication::quit, Qt::QueuedConnection
   );
-  connect(
-      m_trayIcon, &QSystemTrayIcon::activated, this,
-      &MainWindow::onTrayIconActivate
-  );
+  setStyleSheet("QMenu::item { padding: 10px 20px; }");
+}
 
-  // use builtin Qt icon for both tray icon and window icon
-  QStyle::StandardPixmap standardIcon =
-      QStyle::StandardPixmap::SP_TitleBarMenuButton;
-  QIcon icon = style()->standardIcon(standardIcon);
-  m_trayIcon->setIcon(icon);
-  setWindowIcon(icon);
+MainSystemTrayIcon::MainSystemTrayIcon(MainWindow *main, QObject *parent)
+    : QSystemTrayIcon(parent),
+      m_main(main) {
+  m_icon = m_main->windowIcon();
+  m_menu = new MainSystemTrayIconMenu(m_main, m_main);
+  setIcon(m_icon);
+  setContextMenu(m_menu);
+  connect(
+      this, &QSystemTrayIcon::activated, this, &MainSystemTrayIcon::activate
+  );
+}
+
+void MainSystemTrayIcon::activate(QSystemTrayIcon::ActivationReason reason) {
+  switch (reason) {
+  case QSystemTrayIcon::DoubleClick: {
+    m_main->showRaised();
+    break;
+  }
+  }
+}
+MainWindow::MainWindow(
+    ParsedConfig config, QWidget *parent, Qt::WindowFlags flags
+)
+    : QMainWindow(parent, flags),
+      m_config(std::move(config)) {
+  m_icon = style()->standardIcon(QStyle::StandardPixmap::SP_TitleBarMenuButton);
+  setWindowIcon(m_icon);
+  m_trayIcon = new MainSystemTrayIcon(this, this);
+  if (m_config.trayIcon) {
+    m_trayIcon->show();
+  }
+}
+
+void MainWindow::showRaised() {
+  if (isMinimized() || !isVisible()) {
+    showNormal();
+  }
+  raise();
+  activateWindow();
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
-  if (!event->spontaneous() || !isVisible())
+  if (event && !event->spontaneous())
     return;
-  if (m_trayIcon->isVisible()) {
+  if (!isVisible())
+    return;
+  if (m_config.hideOnClose) {
     hide();
     m_trayIcon->showMessage(
         tr("Window is currently hidden."),
@@ -85,141 +93,10 @@ void MainWindow::closeEvent(QCloseEvent *event) {
   }
 }
 
-void MainWindow::onInitialStartRequest(const StartServerConfiguration &conf) {
-  // pass initial values to edits
-  m_start->onInitialStartRequest(conf);
-
-  // check gui availability
-  bool noGui = QCoreApplication::instance()
-      ? QCoreApplication::instance()->property("noGui").toBool()
-      : false;
-
-  // show main window if needed
-  if (!noGui && !conf.startHidden()) {
-    showNormal();
+void MainWindow::changeEvent(QEvent *event) {
+  if (m_config.hideOnMinimize && event->type() == QEvent::WindowStateChange &&
+      isMinimized()) {
+    QTimer::singleShot(0, this, &QWidget::hide);
   }
-
-  // try start if possible
-  if (!conf.control().isEmpty() && !conf.address().isEmpty()) {
-    if (!m_start->onStartButtonClick()) {
-      if (noGui) {
-        ::exit(EXIT_FAILURE);
-      } else if (!isVisible()) {
-        showNormal();
-      }
-    }
-  }
-}
-
-void MainWindow::onStartRequest(const StartServerConfiguration &conf) {
-  qDebug() << "Starting server with clsid:" << conf.control()
-           << "and address:" << conf.address();
-
-  RunningServerWidget *running =
-      new RunningServerWidget(conf.control(), conf.address(), this);
-
-  if (!running->isReady()) {
-    // check gui availability and app title for printing errors
-    QCoreApplication *app = QCoreApplication::instance();
-    bool noGui = false;
-    QString title;
-    if (app)
-      noGui = app->property("noGui").toBool();
-    if (!noGui) {
-      if (app)
-        title = app->property("applicationDisplayName").toString();
-      if (title.isEmpty()) {
-        title = QCoreApplication::applicationName();
-      }
-    }
-
-    // print error based on failed reason
-    switch (running->failedReason()) {
-    case RunningServerWidget::FailedReason::CONTROL: {
-      QString message = tr("Failed to initialize COM/OCX for the given CLSID.");
-      qCritical() << qPrintable(message);
-      if (!noGui) {
-        QMessageBox msgBox;
-        msgBox.setIcon(QMessageBox::Critical);
-        msgBox.setWindowTitle(title);
-        msgBox.setText(message);
-        msgBox.exec();
-      }
-      if (noGui) {
-        ::exit(EXIT_FAILURE);
-      } else if (!isVisible()) {
-        showNormal();
-      }
-      break;
-    }
-    case RunningServerWidget::FailedReason::SERVER: {
-      QString message =
-          tr("Failed to start server, possibly due to the invalid address "
-             "given.");
-      qCritical() << qPrintable(message);
-      if (!noGui) {
-        QMessageBox msgBox;
-        msgBox.setIcon(QMessageBox::Critical);
-        msgBox.setWindowTitle(title);
-        msgBox.setText(message);
-        msgBox.exec();
-      }
-      if (noGui) {
-        ::exit(EXIT_FAILURE);
-      } else if (!isVisible()) {
-        showNormal();
-      }
-      break;
-    }
-    default: {
-      QString message = tr("Failed to start server, for unknown reason.");
-      qCritical() << qPrintable(message);
-      if (!noGui) {
-        QMessageBox msgBox;
-        msgBox.setIcon(QMessageBox::Critical);
-        msgBox.setWindowTitle(title);
-        msgBox.setText(message);
-        msgBox.exec();
-      }
-      if (noGui) {
-        ::exit(EXIT_FAILURE);
-      } else if (!isVisible()) {
-        showNormal();
-      }
-      break;
-    }
-    }
-
-    // delete invalid running widget
-    running->deleteLater();
-  } else {
-    // add successful values to edit history
-    m_start->addLineEditHistory(conf.control(), conf.address());
-
-    // add and set running widget as current widget
-    m_running = running;
-    m_central->addWidget(running);
-    m_central->setCurrentWidget(running);
-
-    // create tray icon if needed
-    if (conf.createTrayIcon()) {
-      m_trayIcon->show();
-      m_trayIcon->setToolTip(conf.control());
-    }
-
-    // minimize or hide if needed
-    if (isVisible() && m_trayIcon->isVisible() && conf.startHidden()) {
-      hide();
-    }
-  }
-}
-
-void MainWindow::onTrayIconActivate(QSystemTrayIcon::ActivationReason reason) {
-  switch (reason) {
-  case QSystemTrayIcon::DoubleClick: {
-    if (!isVisible()) {
-      showNormal();
-    }
-  }
-  }
+  QMainWindow::changeEvent(event);
 }

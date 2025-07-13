@@ -73,7 +73,6 @@ And this project is the outcome of those choices.
 
 1. Run the executable by double clicking.
 2. Type the required information.
-    - CLSID required to instantiate an Active-X or COM object.
     - Address URI for gRPC server to bind.
 3. Press start button to start server.
 
@@ -84,12 +83,12 @@ And this project is the outcome of those choices.
 If built with console support, give required options to run the server as cli argument:
 
 ```
-.\axserve-x86-console-debug.exe --clsid="{A1574A0D-6BFA-4BD7-9020-DED88711818D}" --address="localhost:8080" --no-gui
+.\axserve-console-amd64.exe --preset="headless" --address-uri="localhost:9501"
 ```
 
-That `--no-gui` option makes the application run without GUI components. This can be useful for cases like embedding this executable in other things. FYI, technically it's not a pure non-gui application but just tries to hide or not to show the windows created internally.
+That `--preset="headless"` option makes the application run without GUI components. This can be useful for cases like embedding this executable in other things. FYI, technically it's not a pure non-gui application but just tries to hide or not to show the windows created internally.
 
-The GUI version also accepts the same cli arguments. But note that it cannot print any messages since there is no console attached. FYI, the GUI version uses message boxes for that instead when needed (like printing errors).
+The WIN32 version also accepts the same cli arguments. But note that it cannot print any messages since there is no console attached. FYI, the WIN32 version uses message boxes for that instead when needed (like printing errors).
 
 ## Client
 
@@ -97,7 +96,6 @@ Just started working on a Python client.
 
 Check the following codes for more information, until relevant documentations are added:
 
-- Example usage of it [example_client.py](https://github.com/elbakramer/axserve/blob/main/src/python/example_client.py)
 - Example usages from tests:
   - Normal synchronous API: [test_iexplorer.py](https://github.com/elbakramer/axserve/blob/main/tests/test_iexplorer.py)
   - Asynchronous API under `asyncio` framework: [test_iexplorer_async.py](https://github.com/elbakramer/axserve/blob/main/tests/test_iexplorer_async.py)
@@ -183,14 +181,16 @@ cmake --list-presets
 ### Configure
 
 ```
-cmake --preset x86-win32-debug .
+cmake --preset amd64
 ```
 
 ### Build
 
 ```
-cmake --build .\build\x86-win32-debug --parallel
+cmake --build --preset amd64-release
 ```
+
+Note that you should build `${host_arch}-release` version at first in order to support the tools for the later cross-compling.
 
 ## Build Project using Hatch and publish
 
@@ -200,7 +200,7 @@ cmake --build .\build\x86-win32-debug --parallel
 hatch build
 ```
 
-## Publish to PyPI
+### Publish to PyPI
 
 ```
 hatch publish

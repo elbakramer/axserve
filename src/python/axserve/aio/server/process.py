@@ -17,48 +17,61 @@
 from __future__ import annotations
 
 import asyncio
+import platform
 
-from asyncio import Task
 from asyncio.subprocess import Process
-from collections.abc import Coroutine
-from typing import Any
 
+from axserve.aio.common.async_initializable import AsyncInitializable
 from axserve.common.process import AssignProcessToJobObject
 from axserve.common.process import CreateJobObjectForCleanUp
-from axserve.server.process import FindServerExecutableForCLSID
+from axserve.server.process import FindServerExecutableForMachine
 
 
-class AxServeServerProcess(Process):
-    _init_coro: Coroutine[Any, Any, Process]
-    _init_task: Task
-
+class AxServeServerProcess(Process, AsyncInitializable):
     _underlying_proc: Process
     _job_handle: int
 
-    def __init__(self, clsid: str, address: str, **kwargs):
-        self._init_coro = self.__ainit__(clsid, address, **kwargs)
-        self._init_task = asyncio.create_task(self._init_coro)
+    def __init__(
+        self,
+        address: str,
+        *,
+        machine: str | None = None,
+        **kwargs,
+    ):
+        AsyncInitializable.__init__(
+            self,
+            address,
+            machine=machine,
+            **kwargs,
+        )
 
-    async def __ainit__(self, clsid: str, address: str, **kwargs):
-        executable = FindServerExecutableForCLSID(clsid)
-        cmd = [executable, f"--clsid={clsid}", f"--address={address}", "--no-gui"]
+    async def __ainit__(
+        self,
+        address: str,
+        *,
+        machine: str | None = None,
+        **kwargs,
+    ):
+        if not machine:
+            machine = platform.machine()
+        executable = FindServerExecutableForMachine(machine)
+        cmd = [executable, "--preset", "service", "--address-uri", address]
         self._underlying_proc = await asyncio.create_subprocess_exec(*cmd, **kwargs)
-        super().__init__(
-            self._underlying_proc._transport,
-            self._underlying_proc._protocol,
-            self._underlying_proc._loop,
+        Process.__init__(
+            self,
+            self._underlying_proc._transport,  # type: ignore
+            self._underlying_proc._protocol,  # type: ignore
+            self._underlying_proc._loop,  # type: ignore
         )
         self._job_handle = CreateJobObjectForCleanUp()
         AssignProcessToJobObject(self._job_handle, self.pid)
 
-    async def __aenter__(self):
-        await self._init_task
-        return self
 
-    async def __aexit__(self, exc_type, exc_value, traceback):
-        return
-
-
-async def CreateAxServeServerProcess(clsid: str, address: str, *args, **kwargs) -> AxServeServerProcess:
-    proc = AxServeServerProcess(clsid, address, *args, **kwargs)
-    return await proc.__aenter__()
+async def CreateAxServeServerProcess(
+    address: str,
+    *,
+    machine: str | None = None,
+    **kwargs,
+) -> AxServeServerProcess:
+    process = AxServeServerProcess(address, machine=machine, **kwargs)
+    return await process.__aenter__()

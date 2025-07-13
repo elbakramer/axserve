@@ -49,7 +49,7 @@ public:
 public:
   static MessageHandlersManager *instance();
   static void messageHandler(
-      QtMsgType type, const QMessageLogContext &context, const QString &str
+      QtMsgType type, const QMessageLogContext &context, const QString &msg
   );
 
   void registerHandler(QtMessageHandler handler);
@@ -59,7 +59,7 @@ public:
   void unregisterHandler(const QSharedPointer<AbstractMessageHandler> &handler);
 
   void operator()(
-      QtMsgType type, const QMessageLogContext &context, const QString &str
+      QtMsgType type, const QMessageLogContext &context, const QString &msg
   ) override;
 };
 

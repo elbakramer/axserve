@@ -1,90 +1,62 @@
+cmake_minimum_required(VERSION 3.27)
+
 include_guard(GLOBAL)
 
 message(CHECK_START "Checking ZLIB provider")
 
-if (NOT BUILD_SHARED_LIBS)
+if (BUILD_SHARED_LIBS)
+    set(ZLIB_USE_STATIC_LIBS OFF)
+else()
     set(ZLIB_USE_STATIC_LIBS ON)
 endif()
 
 if(AXSERVE_ZLIB_PROVIDER STREQUAL "module")
     set(ZLIB_EXTERNAL_NAME "ZLIB")
+    set(ZLIB_PREFIX_NAME "zlib")
+    set(ZLIB_THIRD_PARTY_NAME "zlib")
 
-    set(ZLIB_SOURCE_DIR   "${CMAKE_CURRENT_SOURCE_DIR}/third_party/zlib")
-    set(ZLIB_PREFIX_DIR   "${CMAKE_CURRENT_BINARY_DIR}/zlib")
-    set(ZLIB_BINARY_DIR   "${CMAKE_CURRENT_BINARY_DIR}/zlib-build")
-    set(ZLIB_INSTALL_DIR  "${ZLIB_PREFIX_DIR}")
-    set(ZLIB_TMP_DIR      "${ZLIB_PREFIX_DIR}/tmp")
-    set(ZLIB_STAMP_DIR    "${ZLIB_TMP_DIR}/stamp")
-    set(ZLIB_LOG_DIR      "${ZLIB_TMP_DIR}/log")
-    set(ZLIB_DOWNLOAD_DIR "${ZLIB_TMP_DIR}/download")
+    set(ZLIB_GIT_REPOSITORY "https://github.com/zlib-ng/zlib-ng.git")
+    set(ZLIB_GIT_TAG "2.2.4")
 
-    if(NOT EXISTS "${ZLIB_SOURCE_DIR}/CMakeLists.txt")
-        set(ZLIB_GIT_REPOSITORY "https://github.com/zlib-ng/zlib-ng.git")
-        set(ZLIB_GIT_TAG "2.1.6")
-    endif()
-
-    set(ZLIB_CMAKE_COMMAND "${CMAKE_COMMAND}")
-
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        set(ZLIB_CMAKE_ARGS
-            "-DCMAKE_SYSTEM_NAME:STRING=${CMAKE_SYSTEM_NAME}"
-            "-DCMAKE_SYSTEM_PROCESSOR:STRING=${CMAKE_SYSTEM_PROCESSOR}"
-            "-P" "${CMAKE_CURRENT_LIST_DIR}/../msvc/env-msvc.cmake"
-            "--" "${ZLIB_CMAKE_COMMAND}")
-        set(ZLIB_BUILD_COMMAND
-            "${ZLIB_CMAKE_COMMAND}" ${ZLIB_CMAKE_ARGS}
-            "--build" "${ZLIB_BINARY_DIR}"
-            "--parallel")
-        set(ZLIB_PATCH_COMMAND
-            git restore * &&
-            git apply --ignore-whitespace "${CMAKE_CURRENT_LIST_DIR}/../../patches/zlib-ng-2.1.6.patch")
-    endif()
+    set(ZLIB_PATCH_COMMAND
+        git restore * &&
+        git apply --ignore-whitespace "${CMAKE_CURRENT_LIST_DIR}/../../patches/zlib-ng-2.2.4.patch")
 
     include("${CMAKE_CURRENT_LIST_DIR}/googletest.cmake")
+
     set(ZLIB_CMAKE_CACHE_ARGS
-        "-DCMAKE_INSTALL_PREFIX:PATH=${ZLIB_PREFIX_DIR}"
-        "-DCMAKE_PREFIX_PATH:PATH=${CMAKE_PREFIX_PATH}"
         "-DCMAKE_SYSTEM_NAME:STRING=${CMAKE_SYSTEM_NAME}"
+        "-DCMAKE_SYSTEM_VERSION:STRING=${CMAKE_SYSTEM_VERSION}"
         "-DCMAKE_SYSTEM_PROCESSOR:STRING=${CMAKE_SYSTEM_PROCESSOR}"
-        "-DCMAKE_CROSSCOMPILING:BOOL=${CMAKE_CROSSCOMPILING}"
-        "-DCMAKE_TOOLCHAIN_FILE:PATH=${CMAKE_TOOLCHAIN_FILE}"
-        "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
-        "-DBUILD_SHARED_LIBS:BOOL=${BUILD_SHARED_LIBS}"
+        "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
         "-DCMAKE_CXX_STANDARD:STRING=${CMAKE_CXX_STANDARD}"
         "-DCMAKE_CXX_STANDARD_REQUIRED:BOOL=${CMAKE_CXX_STANDARD_REQUIRED}"
+        "-DBUILD_SHARED_LIBS:BOOL=${BUILD_SHARED_LIBS}"
+        "-DBUILD_TESTING:BOOL=${BUILD_TESTING}"
+        "-DZLIB_ENABLE_TESTS:BOOL=${BUILD_TESTING}"
+        "-DZLIBNG_ENABLE_TESTS:BOOL=${BUILD_TESTING}"
         "-DZLIB_COMPAT:BOOL=ON"
     )
-    set(ZLIB_DEPENDS "")
+
     if(AXSERVE_GTEST_PROVIDER STREQUAL "module")
         list(APPEND ZLIB_DEPENDS GTest)
     endif()
 
-    include(ExternalProject)
-    ExternalProject_Add("${ZLIB_EXTERNAL_NAME}"
-        PREFIX "${ZLIB_PREFIX_DIR}"
-        TMP_DIR "${ZLIB_TMP_DIR}"
-        STAMP_DIR "${ZLIB_STAMP_DIR}"
-        LOG_DIR "${ZLIB_LOG_DIR}"
-        DOWNLOAD_DIR "${ZLIB_DOWNLOAD_DIR}"
-        SOURCE_DIR "${ZLIB_SOURCE_DIR}"
-        BINARY_DIR "${ZLIB_BINARY_DIR}"
-        INSTALL_DIR "${ZLIB_INSTALL_DIR}"
+    include("${CMAKE_CURRENT_LIST_DIR}/../util/external-project.cmake")
+
+    ExternalProject_AddForThisProject("${ZLIB_EXTERNAL_NAME}"
+        PREFIX_NAME "${ZLIB_PREFIX_NAME}"
+        THIRD_PARTY_NAME "${ZLIB_THIRD_PARTY_NAME}"
         GIT_REPOSITORY "${ZLIB_GIT_REPOSITORY}"
         GIT_TAG "${ZLIB_GIT_TAG}"
-        CMAKE_COMMAND "${ZLIB_CMAKE_COMMAND}"
-        CMAKE_ARGS ${ZLIB_CMAKE_ARGS}
         CMAKE_CACHE_ARGS ${ZLIB_CMAKE_CACHE_ARGS}
-        BUILD_COMMAND ${ZLIB_BUILD_COMMAND}
-        PATCH_COMMAND ${ZLIB_PATCH_COMMAND}
         DEPENDS ${ZLIB_DEPENDS}
+        START_UNPARSED_ARGUMENTS
+        PATCH_COMMAND ${ZLIB_PATCH_COMMAND}
         LOG_CONFIGURE TRUE
         LOG_BUILD TRUE
+        LOG_OUTPUT_ON_FAILURE TRUE
     )
-
-    ExternalProject_Get_Property("${ZLIB_EXTERNAL_NAME}" INSTALL_DIR)
-    set(ZLIB_INSTALL_DIR "${INSTALL_DIR}")
-    set(ZLIB_ROOT "${ZLIB_INSTALL_DIR}")
-    list(APPEND CMAKE_PREFIX_PATH "${ZLIB_INSTALL_DIR}")
 
     message(CHECK_PASS "${AXSERVE_ZLIB_PROVIDER}")
 elseif(AXSERVE_ZLIB_PROVIDER STREQUAL "package")

@@ -36,7 +36,7 @@ from win32api import ExpandEnvironmentStrings
 from win32api import RegOpenKey
 from win32api import RegQueryValue
 from win32api import RegQueryValueEx
-from win32com.client.build import MakePublicAttributeName as _MakePublicAttributeName
+from win32com.client.build import MakePublicAttributeName as _MakePublicAttributeName  # type: ignore
 from win32com.client.genpy import Generator
 from win32com.client.genpy import MakeEventMethodName as _MakeEventMethodName
 from win32com.client.selecttlb import EnumKeys

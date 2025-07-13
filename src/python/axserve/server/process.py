@@ -16,34 +16,44 @@
 
 from __future__ import annotations
 
+import platform
+
 from pathlib import Path
 
 from axserve.common.process import KillOnDeletePopen
 from axserve.common.registry import CheckMachineFromCLSID
-from axserve.common.runnable_popen import RunnablePopen
 
 
-def FindServerExecutableForCLSID(clsid: str) -> Path:
-    configs = ["debug", "release"]
-    machine = CheckMachineFromCLSID(clsid)
-    if not machine:
-        msg = f"Cannot determine machine type for clsid: {clsid}"
-        raise ValueError(msg)
-    executable_candidate_names = [f"axserve-{machine.lower()}-console-{config}.exe" for config in configs]
-    executable_dir = Path(__file__).parent / "exe"
-    executable: Path | None = None
-    for name in executable_candidate_names:
-        executable = executable_dir / name
-        if executable.exists():
-            break
-    if not executable or not executable.exists():
-        msg = f"Cannot find server executable for clsid: {clsid}"
+EXECUTABLE_DIR = Path(__file__).parent / "exe"
+
+
+def FindServerExecutableForMachine(machine: str) -> Path:
+    name = f"axserve-console-{machine.lower()}.exe"
+    executable = EXECUTABLE_DIR / name
+    if not executable.exists():
+        msg = f"Cannot find server executable for machine: {machine}"
         raise RuntimeError(msg)
     return executable
 
 
-class AxServeServerProcess(KillOnDeletePopen, RunnablePopen):
-    def __init__(self, clsid: str, address: str, *args, **kwargs):
-        executable = FindServerExecutableForCLSID(clsid)
-        cmd = [executable, f"--clsid={clsid}", f"--address={address}", "--no-gui"]
-        super().__init__(cmd, *args, **kwargs)
+def FindServerExecutableForCLSID(clsid: str) -> Path:
+    machine = CheckMachineFromCLSID(clsid)
+    if not machine:
+        msg = f"Cannot determine machine type for clsid: {clsid}"
+        raise ValueError(msg)
+    return FindServerExecutableForMachine(machine)
+
+
+class AxServeServerProcess(KillOnDeletePopen):
+    def __init__(
+        self,
+        address: str,
+        *,
+        machine: str | None = None,
+        **kwargs,
+    ):
+        if not machine:
+            machine = platform.machine()
+        executable = FindServerExecutableForMachine(machine)
+        cmd = [executable, "--preset", "service", "--address-uri", address]
+        super().__init__(cmd, **kwargs)

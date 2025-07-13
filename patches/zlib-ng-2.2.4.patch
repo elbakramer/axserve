@@ -1,0 +1,14 @@
+diff --git a/test/test_main.cc b/test/test_main.cc
+index 994a3ef3..a91d5334 100644
+--- a/test/test_main.cc
++++ b/test/test_main.cc
+@@ -12,7 +12,8 @@ extern "C" {
+ #  endif
+ }
+
+-GTEST_API_ int main(int argc, char **argv) {
++GTEST_API_ int main(int argc, char **argv);
++int main(int argc, char **argv) {
+   printf("Running main() from %s\n", __FILE__);
+ #ifndef DISABLE_RUNTIME_CPU_DETECTION
+   cpu_check_features(&test_cpu_features);

@@ -35,10 +35,11 @@ classifiers = [
   "Environment :: X11 Applications :: Qt",
 ]
 dependencies = [
-  "click>=8.1.7",
-  "grpcio>=1.62.0",
-  "wrapt>=1.16.0",
-  "pywin32>=306; platform_system == 'Windows'",
+  "click>=8.2.1",
+  "grpcio>=1.73.1",
+  "protobuf>=6.31.1",
+  "wrapt>=1.17.2",
+  "pywin32>=310; platform_system == 'Windows'",
 ]
 
 [project.urls]
@@ -69,21 +70,23 @@ include-dirs = ["src/proto"]
 out-dir = "src/python/axserve/proto"
 
 [[tool.hatch.build.targets.wheel.hooks.custom.builds]]
-build-dir = "build/amd64-all-release"
-generator = "Ninja"
+build-dir = "build/amd64"
+generator = "Ninja Multi-Config"
 config = "Release"
 system-processor = "AMD64"
+toolchain = "cmake/msvc/toolchain-msvc.cmake"
 runtime-output-dir = "src/python/axserve/server/exe"
-output-files = ["src/python/axserve/server/exe/axserve-amd64-console-release.exe"]
+output-files = ["src/python/axserve/server/exe/axserve-console-amd64.exe"]
 marker = "platform_system == 'Windows' and platform_machine == 'AMD64'"
 
 [[tool.hatch.build.targets.wheel.hooks.custom.builds]]
-build-dir = "build/x86-all-release"
-generator = "Ninja"
+build-dir = "build/x86"
+generator = "Ninja Multi-Config"
 config = "Release"
 system-processor = "x86"
+toolchain = "cmake/msvc/toolchain-msvc.cmake"
 runtime-output-dir = "src/python/axserve/server/exe"
-output-files = ["src/python/axserve/server/exe/axserve-x86-console-release.exe"]
+output-files = ["src/python/axserve/server/exe/axserve-console-x86.exe"]
 marker = "platform_system == 'Windows' and (platform_machine == 'AMD64' or platform_machine == 'x86')"
 
 [tool.hatch.envs.default]
@@ -220,6 +223,10 @@ exclude = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.pyright]
+exclude = ["build", "dist", "third_party"]
 
 [tool.coverage.run]
 source_pkgs = ["axserve", "tests"]

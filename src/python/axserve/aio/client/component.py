@@ -19,7 +19,6 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import typing
-import weakref
 
 from asyncio import Task
 from collections import defaultdict
@@ -27,104 +26,28 @@ from collections.abc import AsyncIterator
 from collections.abc import Callable
 from collections.abc import Coroutine
 from collections.abc import Mapping
-from weakref import ReferenceType
+from typing import TYPE_CHECKING
+from weakref import WeakValueDictionary
 
 import grpc
-import pywintypes
 
-from axserve.aio.client.abstract import AbstractAxServeEventContextManager
-from axserve.aio.client.abstract import AbstractAxServeEventHandlersManager
-from axserve.aio.client.abstract import AbstractAxServeEventLoop
-from axserve.aio.client.abstract import AbstractAxServeEventLoopManager
-from axserve.aio.client.abstract import AbstractAxServeEventStreamManager
-from axserve.aio.client.abstract import AbstractAxServeMembersManager
-from axserve.aio.client.abstract import AbstractAxServeObject
-from axserve.aio.client.abstract import AbstractAxServeStubManager
 from axserve.aio.client.descriptor import AxServeEvent
 from axserve.aio.client.descriptor import AxServeMember
 from axserve.aio.client.descriptor import AxServeMethod
 from axserve.aio.client.descriptor import AxServeProperty
-from axserve.aio.common.async_aquireable import AsyncAquireable
+from axserve.aio.common.async_acquireable import AsyncAcquireable
+from axserve.aio.common.async_initializable import AsyncInitializable
 from axserve.aio.common.async_iterable_queue import AsyncIterableQueue
-from axserve.aio.server.process import AxServeServerProcess
-from axserve.aio.server.process import CreateAxServeServerProcess
-from axserve.common.socket import FindFreePort
 from axserve.proto import active_pb2
-from axserve.proto import active_pb2_grpc
-from axserve.proto.variant_conversion import ValueFromVariant
+from axserve.proto.active_pb2_conversion import ValueFromVariant
+from axserve.proto.active_pb2_grpc import ActiveStub
 
 
-class AxServeStubManager(AbstractAxServeStubManager):
-    async def __ainit__(self, channel: grpc.aio.Channel | str | int):
-        if isinstance(channel, grpc.aio.Channel):
-            self._given_channel = channel
-            self._channel = channel
-        elif isinstance(channel, int):
-            port = channel
-            address = f"localhost:{port}"
-            channel = grpc.aio.insecure_channel(address)
-            self._managed_channel = channel
-            self._channel = channel
-        elif isinstance(channel, str):
-            try:
-                pywintypes.IID(channel)
-            except pywintypes.com_error:
-                address = channel
-                channel = grpc.aio.insecure_channel(address)
-                self._managed_channel = channel
-                self._channel = channel
-            else:
-                clsid = channel
-                port = FindFreePort()
-                address = f"localhost:{port}"
-                server_process = await CreateAxServeServerProcess(clsid, address)
-                channel = grpc.aio.insecure_channel(address)
-                self._managed_channel = channel
-                self._channel = channel
-                self._server_process = server_process
-        else:
-            msg = "Invalid channel argument is given"
-            raise ValueError(msg)
-
-        self._stub = active_pb2_grpc.ActiveStub(self._channel)
-
-    def __init__(self, channel: grpc.aio.Channel | str | int):
-        self._given_channel: grpc.aio.Channel | None = None
-        self._managed_channel: grpc.aio.Channel | None = None
-        self._channel: grpc.aio.Channel | None = None
-        self._server_process: AxServeServerProcess | None = None
-        self._stub: active_pb2_grpc.ActiveStub | None = None
-
-        self._init_coro = self.__ainit__(channel)
-        self._init_task = asyncio.create_task(self._init_coro)
-
-    async def _initialized(self) -> None:
-        await self._init_task
-
-    def _get_stub(self) -> active_pb2_grpc.ActiveStub | None:
-        return self._stub
-
-    def _get_channel(self) -> grpc.aio.Channel | None:
-        return self._channel
-
-    def _get_managed_channel(self) -> grpc.aio.Channel | None:
-        return self._managed_channel
-
-    async def _close_managed_channel(self) -> None:
-        if self._managed_channel:
-            await self._managed_channel.close()
-        if self._server_process:
-            try:
-                self._server_process.terminate()
-            except ProcessLookupError:
-                pass
-            await self._server_process.wait()
-
-    async def _channel_ready(self) -> None:
-        await self._channel.channel_ready()
+if TYPE_CHECKING:
+    from axserve.aio.client.stub import AxServeObject
 
 
-class AxServeEventContextManager(AbstractAxServeEventContextManager):
+class AxServeEventContextManager:
     def __init__(self):
         self._handle_event_context_stack = []
 
@@ -135,21 +58,32 @@ class AxServeEventContextManager(AbstractAxServeEventContextManager):
         handle_event_context_stack = self._get_handle_event_context_stack()
         return handle_event_context_stack[-1] if handle_event_context_stack else None
 
+    def _contextualize_request(self, request):
+        current_handle_event = self._get_current_handle_event()
+        if not current_handle_event:
+            return request
+        context_type = active_pb2.ContextType.EVENT
+        request.context.context_type = context_type
+        request.context.context_info.id = current_handle_event.id
+        request.context.context_info.instance = current_handle_event.instance
+        request.context.context_info.index = current_handle_event.index
+        return request
 
-class AxServeEventHandlersManager(AbstractAxServeEventHandlersManager):
+
+class AxServeEventHandlersManager:
     def __init__(self):
         self._event_handlers_mapping: Mapping[int, list[Callable]] = defaultdict(list)
-        self._event_handlers_lock_mapping: Mapping[int, AsyncAquireable] = defaultdict(asyncio.Lock)
+        self._event_handlers_lock_mapping: Mapping[int, AsyncAcquireable] = defaultdict(asyncio.Lock)  # type: ignore
 
     def _get_event_handlers(self, index: int) -> list[Callable]:
         return self._event_handlers_mapping[index]
 
-    def _get_event_handlers_lock(self, index: int) -> AsyncAquireable:
+    def _get_event_handlers_lock(self, index: int) -> AsyncAcquireable:
         return self._event_handlers_lock_mapping[index]
 
 
-class AxServeEventStreamManager(AbstractAxServeEventStreamManager):
-    def __init__(self, stub: active_pb2_grpc.ActiveStub, *, use_response_queue: bool = False):
+class AxServeEventStreamManager:
+    def __init__(self, stub: ActiveStub, *, use_response_queue: bool = False):
         self._use_response_queue = use_response_queue
         if self._use_response_queue:
             self._handle_event_response_queue = AsyncIterableQueue()
@@ -174,23 +108,55 @@ class AxServeEventStreamManager(AbstractAxServeEventStreamManager):
             handle_events = typing.cast(grpc.aio.StreamStreamCall, self._handle_event_requests)
             return await handle_events.done_writing()
 
-    def _cancel_event_stream(self) -> None:
+    def _cancel_event_stream(self) -> bool:
         handle_events = typing.cast(grpc.aio.RpcContext, self._handle_event_requests)
         return handle_events.cancel()
 
 
-class AxServeMembersManager(AbstractAxServeMembersManager):
+class AxServeInstancesManager:
+    def __init__(self):
+        self._instances = WeakValueDictionary()
+
+    def _register_instance(self, i: str, o: AxServeObject):
+        self._instances[i] = o
+
+    def _unregister_instance(self, i: str):
+        del self._instances[i]
+
+    def _has_instance(self, i: str) -> bool:
+        return i in self._instances
+
+    def _get_instance(self, i: str) -> AxServeObject | None:
+        return self._instances.get(i)
+
+
+class AxServeMembersManager(AsyncInitializable):
+    def __init__(
+        self,
+        instance: str,
+        stub: ActiveStub,
+        context_manager: AxServeEventContextManager,
+    ):
+        AsyncInitializable.__init__(self, instance, stub, context_manager)
+
     async def __ainit__(
         self,
-        stub: active_pb2_grpc.ActiveStub,
-        current_handle_event: active_pb2.HandleEventRequest | None = None,
+        instance: str,
+        stub: ActiveStub,
+        context_manager: AxServeEventContextManager,
     ):
+        self._members_dict: dict[str, AxServeMember] = {}
+
+        self._properties_list: list[AxServeProperty] = []
+        self._properties_dict: dict[str, AxServeProperty] = {}
+        self._methods_list: list[AxServeMethod] = []
+        self._methods_dict: dict[str, AxServeMethod] = {}
+        self._events_list: list[AxServeEvent] = []
+        self._events_dict: dict[str, AxServeEvent] = {}
+
         request = active_pb2.DescribeRequest()
-        if current_handle_event:
-            request_context = active_pb2.RequestContext.EVENT_CALLBACK
-            callback_event_index = current_handle_event.index
-            request.request_context = request_context
-            request.callback_event_index = callback_event_index
+        request.instance = instance
+        context_manager._contextualize_request(request)
         response = await stub.Describe(request)
         response = typing.cast(active_pb2.DescribeResponse, response)
 
@@ -217,26 +183,6 @@ class AxServeMembersManager(AbstractAxServeMembersManager):
                 self._members_dict[info.name] = AxServeMember()
             self._members_dict[info.name]._event = event
 
-    def __init__(
-        self,
-        stub: active_pb2_grpc.ActiveStub,
-        current_handle_event: active_pb2.HandleEventRequest | None = None,
-    ):
-        self._members_dict: dict[str, AxServeMember] = {}
-
-        self._properties_list: list[AxServeProperty] = []
-        self._properties_dict: dict[str, AxServeProperty] = {}
-        self._methods_list: list[AxServeMethod] = []
-        self._methods_dict: dict[str, AxServeMethod] = {}
-        self._events_list: list[AxServeEvent] = []
-        self._events_dict: dict[str, AxServeEvent] = {}
-
-        self._init_coro = self.__ainit__(stub, current_handle_event)
-        self._init_task = asyncio.create_task(self._init_coro)
-
-    async def _initialized(self) -> None:
-        await self._init_task
-
     @classmethod
     def _make_event_method_name(cls, name: str) -> str:
         if not name.startswith("On"):
@@ -262,13 +208,35 @@ class AxServeMembersManager(AbstractAxServeMembersManager):
         return list(self._members_dict.keys())
 
 
-class AxServeEventLoop(AbstractAxServeEventLoop):
-    def __init__(self, instance: AbstractAxServeObject):
-        self._instance = instance
-        self._event_context_manager = instance
-        self._event_handlers_manager = instance
-        self._event_stream_manager = instance
-        self._event_members_manager = instance
+class AxServeMembersManagerCache:
+    def __init__(
+        self,
+        stub: ActiveStub,
+        context_manager: AxServeEventContextManager,
+    ):
+        self._stub = stub
+        self._context_manager = context_manager
+        self._members_managers = {}
+
+    async def _get_members_manager(self, c: str, i: str) -> AxServeMembersManager:
+        if c not in self._members_managers:
+            members_manager = AxServeMembersManager(i, self._stub, self._context_manager)
+            await members_manager.__aenter__()
+            self._members_managers[c] = members_manager
+        members_manager = self._members_managers[c]
+        return members_manager
+
+
+class AxServeEventLoop:
+    def __init__(
+        self,
+        instances_manager: AxServeInstancesManager,
+        event_context_manager: AxServeEventContextManager,
+        event_stream_manager: AxServeEventStreamManager,
+    ):
+        self._instances_manager = instances_manager
+        self._event_context_manager = event_context_manager
+        self._event_stream_manager = event_stream_manager
 
         self._state_lock = asyncio.Lock()
         self._is_exitting = False
@@ -296,11 +264,12 @@ class AxServeEventLoop(AbstractAxServeEventLoop):
         finally:
             event_context_stack.pop()
             response = active_pb2.HandleEventResponse()
-            response.index = handle_event.index
             response.id = handle_event.id
+            response.instance = handle_event.instance
+            response.index = handle_event.index
             await self._event_stream_manager._put_handle_event_response(response)
 
-    async def exec(self) -> int:  # noqa: A003
+    async def exec(self) -> int:
         async with self._create_exec_context():
             handle_events = self._event_stream_manager._get_handle_event_requests()
             try:
@@ -309,8 +278,15 @@ class AxServeEventLoop(AbstractAxServeEventLoop):
                         return self._return_code
                     async with self._create_handle_event_context(handle_event):
                         args = [ValueFromVariant(arg) for arg in handle_event.arguments]
-                        event_callback = self._event_members_manager._get_event(handle_event.index)
-                        await event_callback(self._instance, *args)
+                        if not self._instances_manager._has_instance(handle_event.instance):
+                            continue
+                        instance = self._instances_manager._get_instance(handle_event.instance)
+                        if not instance:
+                            continue
+                        if instance.__axserve__ is None:
+                            continue
+                        event_callback = instance.__axserve__._members_manager._get_event(handle_event.index)
+                        await event_callback(instance, *args)
             except grpc.RpcError as exc:
                 if not (self._is_exitting and isinstance(exc, grpc.Call) and exc.code() == grpc.StatusCode.CANCELLED):
                     raise exc
@@ -319,7 +295,7 @@ class AxServeEventLoop(AbstractAxServeEventLoop):
     def is_running(self) -> bool:
         return self._is_running
 
-    async def exit(self, return_code: int = 0) -> None:  # noqa: A003
+    async def exit(self, return_code: int = 0) -> None:
         async with self._state_lock:
             if not self._is_running:
                 return
@@ -332,20 +308,30 @@ class AxServeEventLoop(AbstractAxServeEventLoop):
         await self._event_stream_manager._put_handle_event_response(response)
 
 
-class AxServeEventLoopManager(AbstractAxServeEventLoopManager):
-    def __init__(self, instance: AbstractAxServeObject):
-        self._instance: ReferenceType[AbstractAxServeObject] = weakref.ref(instance)
+class AxServeEventLoopManager:
+    def __init__(
+        self,
+        instances_manager: AxServeInstancesManager,
+        event_context_manager: AxServeEventContextManager,
+        event_stream_manager: AxServeEventStreamManager,
+    ):
+        self._instances_manager = instances_manager
+        self._event_context_manager = event_context_manager
+        self._event_stream_manager = event_stream_manager
+
         self._event_loop: AxServeEventLoop | None = None
         self._event_loop_exec_coro: Coroutine | None = None
         self._event_loop_exec_task: Task | None = None
         self._event_loop_exception: BaseException | None = None
 
     async def _event_loop_exec_target(self):
+        if not self._event_loop:
+            return
         try:
             await self._event_loop.exec()
         except grpc.RpcError as exc:
             self._event_loop_exception = exc
-            self = None
+            self = None  # noqa: PLW0642
             if (
                 isinstance(exc, grpc.aio.AioRpcError)
                 and exc.code() == grpc.StatusCode.CANCELLED
@@ -356,16 +342,16 @@ class AxServeEventLoopManager(AbstractAxServeEventLoopManager):
             raise exc
         except BaseException as exc:
             self._event_loop_exception = exc
-            self = None
+            self = None  # noqa: PLW0642
             raise exc
 
     def start(self) -> None:
         if not self._event_loop:
-            instance = self._instance()
-            if instance is None:
-                msg = "Instance is garbage collected"
-                raise ValueError(msg)
-            self._event_loop = AxServeEventLoop(instance)
+            self._event_loop = AxServeEventLoop(
+                self._instances_manager,
+                self._event_context_manager,
+                self._event_stream_manager,
+            )
         if not self._event_loop_exec_task:
             self._event_loop_exec_coro = self._event_loop_exec_target()
             self._event_loop_exec_task = asyncio.create_task(self._event_loop_exec_coro)

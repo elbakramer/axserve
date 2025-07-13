@@ -47,7 +47,7 @@ public:
 
   static void setMessagePattern(const QString &pattern);
   static QString formatLogMessage(
-      QtMsgType type, const QMessageLogContext &context, const QString &str
+      QtMsgType type, const QMessageLogContext &context, const QString &msg
   );
 
 public:
@@ -70,7 +70,7 @@ public:
 
 public:
   virtual void operator()(
-      QtMsgType type, const QMessageLogContext &context, const QString &str
+      QtMsgType type, const QMessageLogContext &context, const QString &msg
   ) = 0;
 };
 

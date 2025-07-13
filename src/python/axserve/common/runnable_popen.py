@@ -41,8 +41,12 @@ def run_process(
         except:
             process.kill()
             raise
-        retcode = process.poll()
-        completed = CompletedProcess(process.args, retcode, stdout, stderr)
+        completed = CompletedProcess(
+            process.args,
+            process.returncode,
+            stdout,
+            stderr,
+        )
         if check:
             completed.check_returncode()
         return completed

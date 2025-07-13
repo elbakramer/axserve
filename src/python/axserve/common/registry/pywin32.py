@@ -62,11 +62,14 @@ def CheckRegQuery(
     *,
     bits: str | int | None = None,
 ) -> bool:
+    keyname_segments: list = []
     if isinstance(keyname, str):
         if keyname.startswith("\\\\"):
             msg = "Given keyname starts with explicit computername"
             raise ValueError(msg)
-        keyname = keyname.split("\\")
+        keyname_segments = keyname.split("\\")
+    else:
+        keyname_segments = keyname
     if bits is None:
         bits, _ = platform.architecture()
     if isinstance(bits, int):
@@ -78,11 +81,11 @@ def CheckRegQuery(
         if bits not in ["64bit", "32bit"]:
             msg = f"Invalid bits: {bits}"
             raise ValueError(msg)
-    keyname[0] = RootKeyMapping[keyname[0]]
-    if PlatformBits == "64bit" and bits == "32bit" and "WOW6432Node" not in keyname:
-        keyname.insert(keyname.index("CLSID"), "WOW6432Node")
+    keyname_segments[0] = RootKeyMapping[keyname_segments[0]]
+    if PlatformBits == "64bit" and bits == "32bit" and "WOW6432Node" not in keyname_segments:
+        keyname_segments.insert(keyname_segments.index("CLSID"), "WOW6432Node")
     try:
-        functools.reduce(RegOpenKey, keyname)
+        functools.reduce(RegOpenKey, keyname_segments)
     except win32api.error:
         return False
     else:
@@ -91,20 +94,32 @@ def CheckRegQuery(
 
 def CheckRegQueryCLSID(clsid: str, bits: str | int | None = None) -> bool:
     try:
-        clsid = pywintypes.IID(clsid)
+        clsid = str(pywintypes.IID(clsid))
     except pywintypes.com_error:
         return False
-    keyname = ["HKCR", "CLSID", str(clsid)]
+    keyname = ["HKCR", "CLSID", clsid]
     return CheckRegQuery(keyname, bits=bits)
 
 
 def CheckRegQueryProgID(progid: str, bits: str | int | None = None) -> bool:
     try:
-        clsid = pywintypes.IID(progid)
+        clsid = str(pywintypes.IID(progid))
     except pywintypes.com_error:
         return False
-    keyname = ["HKCR", "CLSID", str(clsid)]
+    keyname = ["HKCR", "CLSID", clsid]
     return CheckRegQuery(keyname, bits=bits)
+
+
+def CheckMachine(machine: str | None = None) -> str:
+    if not machine:
+        machine = PlatformMachine
+    if machine in HostToWindowsMachineMapping:
+        machine = HostToWindowsMachineMapping[machine]
+    elif machine.upper() in HostToWindowsMachineMapping:
+        machine = HostToWindowsMachineMapping[machine.upper()]
+    elif machine.lower() in HostToWindowsMachineMapping:
+        machine = HostToWindowsMachineMapping[machine.lower()]
+    return machine
 
 
 def CheckMachineFromCLSID(clsid: str) -> str | None:

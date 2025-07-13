@@ -23,7 +23,7 @@ import win32job
 from axserve.common.runnable_popen import RunnablePopen
 
 
-def CreateJobObjectForCleanUp() -> int:
+def CreateJobObjectForCleanUp() -> int:  # noqa: N802
     jobAttributes = None
     jobName = ""
     hJob = win32job.CreateJobObject(jobAttributes, jobName)
@@ -38,7 +38,7 @@ def CreateJobObjectForCleanUp() -> int:
     return hJob
 
 
-def AssignProcessToJobObject(hJob: int, processId: int) -> None:
+def AssignProcessToJobObject(hJob: int, processId: int) -> None:  # noqa: N802
     assert processId != 0
     desiredAccess = win32con.PROCESS_TERMINATE | win32con.PROCESS_SET_QUOTA
     inheritHandle = False

@@ -14,45 +14,100 @@ class ActiveStub(object):
         Args:
             channel: A grpc.Channel.
         """
+        self.Create = channel.unary_unary(
+                '/axserve.Active/Create',
+                request_serializer=active__pb2.CreateRequest.SerializeToString,
+                response_deserializer=active__pb2.CreateResponse.FromString,
+                _registered_method=True)
+        self.Refer = channel.unary_unary(
+                '/axserve.Active/Refer',
+                request_serializer=active__pb2.ReferRequest.SerializeToString,
+                response_deserializer=active__pb2.ReferResponse.FromString,
+                _registered_method=True)
+        self.Release = channel.unary_unary(
+                '/axserve.Active/Release',
+                request_serializer=active__pb2.ReleaseRequest.SerializeToString,
+                response_deserializer=active__pb2.ReleaseResponse.FromString,
+                _registered_method=True)
+        self.Destroy = channel.unary_unary(
+                '/axserve.Active/Destroy',
+                request_serializer=active__pb2.DestroyRequest.SerializeToString,
+                response_deserializer=active__pb2.DestroyResponse.FromString,
+                _registered_method=True)
+        self.List = channel.unary_unary(
+                '/axserve.Active/List',
+                request_serializer=active__pb2.ListRequest.SerializeToString,
+                response_deserializer=active__pb2.ListResponse.FromString,
+                _registered_method=True)
         self.Describe = channel.unary_unary(
-                '/Active/Describe',
+                '/axserve.Active/Describe',
                 request_serializer=active__pb2.DescribeRequest.SerializeToString,
                 response_deserializer=active__pb2.DescribeResponse.FromString,
-                )
+                _registered_method=True)
         self.GetProperty = channel.unary_unary(
-                '/Active/GetProperty',
+                '/axserve.Active/GetProperty',
                 request_serializer=active__pb2.GetPropertyRequest.SerializeToString,
                 response_deserializer=active__pb2.GetPropertyResponse.FromString,
-                )
+                _registered_method=True)
         self.SetProperty = channel.unary_unary(
-                '/Active/SetProperty',
+                '/axserve.Active/SetProperty',
                 request_serializer=active__pb2.SetPropertyRequest.SerializeToString,
                 response_deserializer=active__pb2.SetPropertyResponse.FromString,
-                )
+                _registered_method=True)
         self.InvokeMethod = channel.unary_unary(
-                '/Active/InvokeMethod',
+                '/axserve.Active/InvokeMethod',
                 request_serializer=active__pb2.InvokeMethodRequest.SerializeToString,
                 response_deserializer=active__pb2.InvokeMethodResponse.FromString,
-                )
+                _registered_method=True)
         self.ConnectEvent = channel.unary_unary(
-                '/Active/ConnectEvent',
+                '/axserve.Active/ConnectEvent',
                 request_serializer=active__pb2.ConnectEventRequest.SerializeToString,
                 response_deserializer=active__pb2.ConnectEventResponse.FromString,
-                )
+                _registered_method=True)
         self.DisconnectEvent = channel.unary_unary(
-                '/Active/DisconnectEvent',
+                '/axserve.Active/DisconnectEvent',
                 request_serializer=active__pb2.DisconnectEventRequest.SerializeToString,
                 response_deserializer=active__pb2.DisconnectEventResponse.FromString,
-                )
+                _registered_method=True)
         self.HandleEvent = channel.stream_stream(
-                '/Active/HandleEvent',
+                '/axserve.Active/HandleEvent',
                 request_serializer=active__pb2.HandleEventResponse.SerializeToString,
                 response_deserializer=active__pb2.HandleEventRequest.FromString,
-                )
+                _registered_method=True)
 
 
 class ActiveServicer(object):
     """Missing associated documentation comment in .proto file."""
+
+    def Create(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def Refer(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def Release(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def Destroy(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def List(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
     def Describe(self, request, context):
         """Missing associated documentation comment in .proto file."""
@@ -99,6 +154,31 @@ class ActiveServicer(object):
 
 def add_ActiveServicer_to_server(servicer, server):
     rpc_method_handlers = {
+            'Create': grpc.unary_unary_rpc_method_handler(
+                    servicer.Create,
+                    request_deserializer=active__pb2.CreateRequest.FromString,
+                    response_serializer=active__pb2.CreateResponse.SerializeToString,
+            ),
+            'Refer': grpc.unary_unary_rpc_method_handler(
+                    servicer.Refer,
+                    request_deserializer=active__pb2.ReferRequest.FromString,
+                    response_serializer=active__pb2.ReferResponse.SerializeToString,
+            ),
+            'Release': grpc.unary_unary_rpc_method_handler(
+                    servicer.Release,
+                    request_deserializer=active__pb2.ReleaseRequest.FromString,
+                    response_serializer=active__pb2.ReleaseResponse.SerializeToString,
+            ),
+            'Destroy': grpc.unary_unary_rpc_method_handler(
+                    servicer.Destroy,
+                    request_deserializer=active__pb2.DestroyRequest.FromString,
+                    response_serializer=active__pb2.DestroyResponse.SerializeToString,
+            ),
+            'List': grpc.unary_unary_rpc_method_handler(
+                    servicer.List,
+                    request_deserializer=active__pb2.ListRequest.FromString,
+                    response_serializer=active__pb2.ListResponse.SerializeToString,
+            ),
             'Describe': grpc.unary_unary_rpc_method_handler(
                     servicer.Describe,
                     request_deserializer=active__pb2.DescribeRequest.FromString,
@@ -136,13 +216,149 @@ def add_ActiveServicer_to_server(servicer, server):
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'Active', rpc_method_handlers)
+            'axserve.Active', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
+    server.add_registered_method_handlers('axserve.Active', rpc_method_handlers)
 
 
  # This class is part of an EXPERIMENTAL API.
 class Active(object):
     """Missing associated documentation comment in .proto file."""
+
+    @staticmethod
+    def Create(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/axserve.Active/Create',
+            active__pb2.CreateRequest.SerializeToString,
+            active__pb2.CreateResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def Refer(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/axserve.Active/Refer',
+            active__pb2.ReferRequest.SerializeToString,
+            active__pb2.ReferResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def Release(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/axserve.Active/Release',
+            active__pb2.ReleaseRequest.SerializeToString,
+            active__pb2.ReleaseResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def Destroy(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/axserve.Active/Destroy',
+            active__pb2.DestroyRequest.SerializeToString,
+            active__pb2.DestroyResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def List(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/axserve.Active/List',
+            active__pb2.ListRequest.SerializeToString,
+            active__pb2.ListResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
 
     @staticmethod
     def Describe(request,
@@ -155,11 +371,21 @@ class Active(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/Active/Describe',
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/axserve.Active/Describe',
             active__pb2.DescribeRequest.SerializeToString,
             active__pb2.DescribeResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
 
     @staticmethod
     def GetProperty(request,
@@ -172,11 +398,21 @@ class Active(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/Active/GetProperty',
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/axserve.Active/GetProperty',
             active__pb2.GetPropertyRequest.SerializeToString,
             active__pb2.GetPropertyResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
 
     @staticmethod
     def SetProperty(request,
@@ -189,11 +425,21 @@ class Active(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/Active/SetProperty',
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/axserve.Active/SetProperty',
             active__pb2.SetPropertyRequest.SerializeToString,
             active__pb2.SetPropertyResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
 
     @staticmethod
     def InvokeMethod(request,
@@ -206,11 +452,21 @@ class Active(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/Active/InvokeMethod',
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/axserve.Active/InvokeMethod',
             active__pb2.InvokeMethodRequest.SerializeToString,
             active__pb2.InvokeMethodResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
 
     @staticmethod
     def ConnectEvent(request,
@@ -223,11 +479,21 @@ class Active(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/Active/ConnectEvent',
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/axserve.Active/ConnectEvent',
             active__pb2.ConnectEventRequest.SerializeToString,
             active__pb2.ConnectEventResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
 
     @staticmethod
     def DisconnectEvent(request,
@@ -240,11 +506,21 @@ class Active(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/Active/DisconnectEvent',
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/axserve.Active/DisconnectEvent',
             active__pb2.DisconnectEventRequest.SerializeToString,
             active__pb2.DisconnectEventResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
 
     @staticmethod
     def HandleEvent(request_iterator,
@@ -257,8 +533,18 @@ class Active(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.stream_stream(request_iterator, target, '/Active/HandleEvent',
+        return grpc.experimental.stream_stream(
+            request_iterator,
+            target,
+            '/axserve.Active/HandleEvent',
             active__pb2.HandleEventResponse.SerializeToString,
             active__pb2.HandleEventRequest.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)

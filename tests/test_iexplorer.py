@@ -25,11 +25,11 @@ def test_dynamic_iexplorer():
 
     on_visible_fired = threading.Event()
 
-    def OnVisible(visible):
+    def on_visible(visible):  # noqa: ARG001
         on_visible_fired.set()
 
     with AxServeObject("InternetExplorer.Application") as iexplorer:
-        iexplorer.OnVisible.connect(OnVisible)
+        iexplorer.OnVisible.connect(on_visible)
         iexplorer.Visible = 1
         fired = on_visible_fired.wait(10)
         assert fired
@@ -52,11 +52,11 @@ def test_declarative_iexplorer():
 
     on_visible_fired = threading.Event()
 
-    def OnVisible(visible):
+    def on_visible(visible):  # noqa: ARG001
         on_visible_fired.set()
 
     with IExplorer() as iexplorer:
-        iexplorer.OnVisible.connect(OnVisible)
+        iexplorer.OnVisible.connect(on_visible)
         iexplorer.Visible = 1
         fired = on_visible_fired.wait(10)
         assert fired

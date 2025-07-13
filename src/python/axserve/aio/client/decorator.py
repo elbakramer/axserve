@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable
 from collections.abc import Callable
 from typing import Concatenate
 from typing import ParamSpec
@@ -31,13 +32,13 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 
-def event(f: Callable[Concatenate[T, P], R]):
+def event(f: Callable[Concatenate[T, P], Awaitable[R]]):
     return AxServeEvent(f)
 
 
-def method(f: Callable[Concatenate[T, P], R]):
+def method(f: Callable[Concatenate[T, P], Awaitable[R]]):
     return AxServeMethod(f)
 
 
-def property(f: Callable[Concatenate[T, P], R]):
+def property(f: Callable[Concatenate[T, P], Awaitable[R]]):  # noqa: A001
     return AxServeProperty(f)

@@ -13,6 +13,7 @@
 # limitations under the License.
 #
 # SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import click
@@ -25,69 +26,22 @@ def cli():
 
 
 @cli.command(short_help="Start gRPC server process for an Active-X or COM support.")
-@click.option(
-    "--clsid",
-    metavar="<CLSID>",
-    required=True,
-    help="CLSID for Active-X or COM.",
-)
-@click.option(
-    "--address",
-    metavar="<ADDRESS>",
-    required=True,
-    help="Address URI for gRPC server to bind.",
-)
-@click.option(
-    "--tray-icon",
-    is_flag=True,
-    help="Create system tray icon for process management.",
-)
-@click.option(
-    "--hidden",
-    is_flag=True,
-    help="Hide the starting window on start. Valid only when the tray icon is created.",
-)
-@click.option(
-    "--no-gui",
-    is_flag=True,
-    help="Disable GUI components. Valid only when console is attached.",
-)
-@click.option(
-    "--translate",
-    is_flag=True,
-    help="Translate to current locale if available.",
-)
-@click.option(
-    "--log-level",
-    metavar="<TYPE>",
-    type=click.Choice(["debug", "info", "warning", "critical", "fatal"], case_sensitive=False),
-    help="Mininmum log level or type to print.",
-)
+@click.option("--machine", help="Machine type to run, AMD64 or x86")
+@click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def serve(
-    clsid: str,
-    address: str,
-    tray_icon: bool,
-    hidden: bool,
-    no_gui: bool,
-    translate: bool,
-    log_level: str,
+    machine: str,
+    args,
 ):
+    import platform
+
     from axserve.common.process import KillOnDeletePopen
-    from axserve.server.process import FindServerExecutableForCLSID
+    from axserve.server.process import FindServerExecutableForMachine
 
-    executable = FindServerExecutableForCLSID(clsid)
-    cmd = [executable, f"--clsid={clsid}", f"--address={address}"]
+    if not machine:
+        machine = platform.machine()
 
-    if tray_icon:
-        cmd.append("--tray-icon")
-    if hidden:
-        cmd.append("--hidden")
-    if no_gui:
-        cmd.append("--no-gui")
-    if translate:
-        cmd.append("--translate")
-    if log_level:
-        cmd.extend(["--log-level", log_level])
+    executable = FindServerExecutableForMachine(machine)
+    cmd = [str(executable), *args]
 
     process = KillOnDeletePopen(cmd)
     process.run()
@@ -107,14 +61,15 @@ def serve(
     help="Path to output python module script.",
 )
 @click.option(
-    "--use-asyncio",
+    "--async",
+    "is_async",
     is_flag=True,
     help="Use asyncio syntax for asynchronous connection.",
 )
 def generate(
     clsid: str,
     filename: str,
-    use_asyncio: bool,
+    is_async: bool,  # noqa: FBT001
 ):
     import ast
 
@@ -124,7 +79,7 @@ def generate(
 
     filepath = Path(filename)
 
-    mod = StubGenerator(is_async=use_asyncio).MakeStubModule(clsid)
+    mod = StubGenerator(is_async=is_async).MakeStubModule(clsid)
     mod = ast.fix_missing_locations(mod)
     code = ast.unparse(mod)
 

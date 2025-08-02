@@ -1,8 +1,5 @@
 [build-system]
-requires = [
-  "hatchling",
-  "grpcio-tools",
-]
+requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
@@ -92,6 +89,7 @@ marker = "platform_system == 'Windows' and (platform_machine == 'AMD64' or platf
 [tool.hatch.envs.default]
 dependencies = [
   "coverage[toml]>=6.5",
+  "grpcio-tools",
   "pytest",
   "pytest-asyncio",
 ]
@@ -141,14 +139,7 @@ ignore-words-list = [
   "doubleclick"
 ]
 
-[tool.black]
-target-version = ["py310"]
-line-length = 120
-skip-string-normalization = true
-
-[tool.ruff]
-target-version = "py310"
-line-length = 120
+[tool.ruff.lint]
 select = [
   "A",
   "ARG",
@@ -191,17 +182,17 @@ unfixable = [
   "F401",
 ]
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 known-first-party = ["axserve"]
 force-single-line = true
 lines-between-types = 1
 lines-after-imports = 2
 required-imports = ["from __future__ import annotations"]
 
-[tool.ruff.flake8-tidy-imports]
+[tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 # Tests can use magic values, assertions, and relative imports
 "tests/**/*" = ["PLR2004", "S101", "TID252"]
 
@@ -223,7 +214,6 @@ exclude = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "function"
 
 [tool.pyright]
 exclude = ["build", "dist", "third_party"]

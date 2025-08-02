@@ -20,13 +20,14 @@ import asyncio
 import contextlib
 import typing
 
+from asyncio import Lock
 from asyncio import Task
 from collections import defaultdict
 from collections.abc import AsyncIterator
 from collections.abc import Callable
-from collections.abc import Coroutine
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
+from typing import TypeVar
 from weakref import WeakValueDictionary
 
 import grpc
@@ -45,6 +46,9 @@ from axserve.proto.active_pb2_grpc import ActiveStub
 
 if TYPE_CHECKING:
     from axserve.aio.client.stub import AxServeObject
+
+
+T = TypeVar("T")
 
 
 class AxServeEventContextManager:
@@ -73,7 +77,9 @@ class AxServeEventContextManager:
 class AxServeEventHandlersManager:
     def __init__(self):
         self._event_handlers_mapping: Mapping[int, list[Callable]] = defaultdict(list)
-        self._event_handlers_lock_mapping: Mapping[int, AsyncAcquireable] = defaultdict(asyncio.Lock)  # type: ignore
+        self._event_handlers_lock_mapping: Mapping[int, AsyncAcquireable] = defaultdict(
+            Lock
+        )
 
     def _get_event_handlers(self, index: int) -> list[Callable]:
         return self._event_handlers_mapping[index]
@@ -87,25 +93,35 @@ class AxServeEventStreamManager:
         self._use_response_queue = use_response_queue
         if self._use_response_queue:
             self._handle_event_response_queue = AsyncIterableQueue()
-            self._handle_event_requests = stub.HandleEvent(self._handle_event_response_queue)
+            self._handle_event_requests = stub.HandleEvent(
+                self._handle_event_response_queue
+            )
         else:
             self._handle_event_requests = stub.HandleEvent()
 
-    def _get_handle_event_requests(self) -> AsyncIterator[active_pb2.HandleEventRequest]:
+    def _get_handle_event_requests(
+        self,
+    ) -> AsyncIterator[active_pb2.HandleEventRequest]:
         return self._handle_event_requests
 
-    async def _put_handle_event_response(self, response: active_pb2.HandleEventResponse) -> None:
+    async def _put_handle_event_response(
+        self, response: active_pb2.HandleEventResponse
+    ) -> None:
         if self._use_response_queue:
             return await self._handle_event_response_queue.put(response)
         else:
-            handle_events = typing.cast(grpc.aio.StreamStreamCall, self._handle_event_requests)
+            handle_events = typing.cast(
+                grpc.aio.StreamStreamCall, self._handle_event_requests
+            )
             return await handle_events.write(response)
 
     async def _close_event_stream(self) -> None:
         if self._use_response_queue:
             return await self._handle_event_response_queue.close()
         else:
-            handle_events = typing.cast(grpc.aio.StreamStreamCall, self._handle_event_requests)
+            handle_events = typing.cast(
+                grpc.aio.StreamStreamCall, self._handle_event_requests
+            )
             return await handle_events.done_writing()
 
     def _cancel_event_stream(self) -> bool:
@@ -114,50 +130,64 @@ class AxServeEventStreamManager:
 
 
 class AxServeInstancesManager:
+    _instances: WeakValueDictionary[str, AxServeObject]
+
     def __init__(self):
         self._instances = WeakValueDictionary()
 
     def _register_instance(self, i: str, o: AxServeObject):
         self._instances[i] = o
 
-    def _unregister_instance(self, i: str):
-        del self._instances[i]
+    def _unregister_instance(
+        self, i: str, default: T | None = None
+    ) -> AxServeObject | T | None:
+        return self._instances.pop(i, default)
 
     def _has_instance(self, i: str) -> bool:
         return i in self._instances
 
-    def _get_instance(self, i: str) -> AxServeObject | None:
-        return self._instances.get(i)
+    def _get_instance(
+        self, i: str, default: T | None = None
+    ) -> AxServeObject | T | None:
+        return self._instances.get(i, default)
 
 
-class AxServeMembersManager(AsyncInitializable):
+class AxServeMembersManager(AsyncInitializable["AxServeMembersManager"]):
+    _instance: str
+    _stub: ActiveStub
+    _context_manager: AxServeEventContextManager
+
+    _members_dict: dict[str, AxServeMember]
+    _properties_list: list[AxServeProperty]
+    _properties_dict: dict[str, AxServeProperty]
+    _methods_list: list[AxServeMethod]
+    _methods_dict: dict[str, AxServeMethod]
+    _events_list: list[AxServeEvent]
+    _events_dict: dict[str, AxServeEvent]
+
     def __init__(
         self,
         instance: str,
         stub: ActiveStub,
         context_manager: AxServeEventContextManager,
     ):
-        AsyncInitializable.__init__(self, instance, stub, context_manager)
+        self._instance = instance
+        self._stub = stub
+        self._context_manager = context_manager
 
-    async def __ainit__(
-        self,
-        instance: str,
-        stub: ActiveStub,
-        context_manager: AxServeEventContextManager,
-    ):
-        self._members_dict: dict[str, AxServeMember] = {}
+        self._members_dict = {}
+        self._properties_list = []
+        self._properties_dict = {}
+        self._methods_list = []
+        self._methods_dict = {}
+        self._events_list = []
+        self._events_dict = {}
 
-        self._properties_list: list[AxServeProperty] = []
-        self._properties_dict: dict[str, AxServeProperty] = {}
-        self._methods_list: list[AxServeMethod] = []
-        self._methods_dict: dict[str, AxServeMethod] = {}
-        self._events_list: list[AxServeEvent] = []
-        self._events_dict: dict[str, AxServeEvent] = {}
-
+    async def __ainit__(self):
         request = active_pb2.DescribeRequest()
-        request.instance = instance
-        context_manager._contextualize_request(request)
-        response = await stub.Describe(request)
+        request.instance = self._instance
+        self._context_manager._contextualize_request(request)
+        response = await self._stub.Describe(request)
         response = typing.cast(active_pb2.DescribeResponse, response)
 
         for info in response.properties:
@@ -220,8 +250,9 @@ class AxServeMembersManagerCache:
 
     async def _get_members_manager(self, c: str, i: str) -> AxServeMembersManager:
         if c not in self._members_managers:
-            members_manager = AxServeMembersManager(i, self._stub, self._context_manager)
-            await members_manager.__aenter__()
+            members_manager = await AxServeMembersManager(
+                i, self._stub, self._context_manager
+            )
             self._members_managers[c] = members_manager
         members_manager = self._members_managers[c]
         return members_manager
@@ -238,7 +269,7 @@ class AxServeEventLoop:
         self._event_context_manager = event_context_manager
         self._event_stream_manager = event_stream_manager
 
-        self._state_lock = asyncio.Lock()
+        self._state_lock = Lock()
         self._is_exitting = False
         self._is_running = False
         self._return_code = 0
@@ -256,8 +287,12 @@ class AxServeEventLoop:
                 self._is_running = False
 
     @contextlib.asynccontextmanager
-    async def _create_handle_event_context(self, handle_event: active_pb2.HandleEventRequest):
-        event_context_stack = self._event_context_manager._get_handle_event_context_stack()
+    async def _create_handle_event_context(
+        self, handle_event: active_pb2.HandleEventRequest
+    ):
+        event_context_stack = (
+            self._event_context_manager._get_handle_event_context_stack()
+        )
         event_context_stack.append(handle_event)
         try:
             yield
@@ -277,18 +312,25 @@ class AxServeEventLoop:
                     if handle_event.is_pong:
                         return self._return_code
                     async with self._create_handle_event_context(handle_event):
+                        instance_id = handle_event.instance
+                        instance = self._instances_manager._get_instance(instance_id)
+                        if instance is None:
+                            continue
+                        ax = instance.__axserve__
+                        if ax is None:
+                            continue
+                        mm = ax._members_manager
+                        if mm is None:
+                            continue
+                        event_callback = mm._get_event(handle_event.index)
                         args = [ValueFromVariant(arg) for arg in handle_event.arguments]
-                        if not self._instances_manager._has_instance(handle_event.instance):
-                            continue
-                        instance = self._instances_manager._get_instance(handle_event.instance)
-                        if not instance:
-                            continue
-                        if instance.__axserve__ is None:
-                            continue
-                        event_callback = instance.__axserve__._members_manager._get_event(handle_event.index)
                         await event_callback(instance, *args)
             except grpc.RpcError as exc:
-                if not (self._is_exitting and isinstance(exc, grpc.Call) and exc.code() == grpc.StatusCode.CANCELLED):
+                if not (
+                    self._is_exitting
+                    and isinstance(exc, grpc.Call)
+                    and exc.code() == grpc.StatusCode.CANCELLED
+                ):
                     raise exc
         return self._return_code
 
@@ -320,7 +362,6 @@ class AxServeEventLoopManager:
         self._event_stream_manager = event_stream_manager
 
         self._event_loop: AxServeEventLoop | None = None
-        self._event_loop_exec_coro: Coroutine | None = None
         self._event_loop_exec_task: Task | None = None
         self._event_loop_exception: BaseException | None = None
 
@@ -353,8 +394,12 @@ class AxServeEventLoopManager:
                 self._event_stream_manager,
             )
         if not self._event_loop_exec_task:
-            self._event_loop_exec_coro = self._event_loop_exec_target()
-            self._event_loop_exec_task = asyncio.create_task(self._event_loop_exec_coro)
+            self._event_loop_exec_task = asyncio.create_task(
+                self._event_loop_exec_target()
+            )
+
+    def is_running(self) -> bool:
+        return self._event_loop.is_running() if self._event_loop else False
 
     async def stop(self) -> None:
         if self._event_loop:

@@ -27,6 +27,7 @@ from collections.abc import Mapping
 from threading import Condition
 from threading import Thread
 from typing import TYPE_CHECKING
+from typing import TypeVar
 from weakref import WeakValueDictionary
 
 import grpc
@@ -44,6 +45,9 @@ from axserve.proto.active_pb2_grpc import ActiveStub
 
 if TYPE_CHECKING:
     from axserve.client.stub import AxServeObject
+
+
+T = TypeVar("T")
 
 
 class AxServeEventContextManager:
@@ -77,7 +81,9 @@ class AxServeEventContextManager:
 class AxServeEventHandlersManager:
     def __init__(self):
         self._event_handlers_mapping: Mapping[int, list[Callable]] = defaultdict(list)
-        self._event_handlers_lock_mapping: Mapping[int, Acquireable] = defaultdict(threading.RLock)  # type: ignore
+        self._event_handlers_lock_mapping: Mapping[int, Acquireable] = defaultdict(
+            threading.RLock
+        )  # type: ignore
 
     def _get_event_handlers(self, index: int) -> list[Callable]:
         return self._event_handlers_mapping[index]
@@ -89,12 +95,16 @@ class AxServeEventHandlersManager:
 class AxServeEventStreamManager:
     def __init__(self, stub: ActiveStub):
         self._handle_event_response_queue = IterableQueue()
-        self._handle_event_requests = stub.HandleEvent(self._handle_event_response_queue)
+        self._handle_event_requests = stub.HandleEvent(
+            self._handle_event_response_queue
+        )
 
     def _get_handle_event_requests(self) -> Iterator[active_pb2.HandleEventRequest]:
         return self._handle_event_requests
 
-    def _put_handle_event_response(self, response: active_pb2.HandleEventResponse) -> None:
+    def _put_handle_event_response(
+        self, response: active_pb2.HandleEventResponse
+    ) -> None:
         return self._handle_event_response_queue.put(response)
 
     def _close_event_stream(self) -> None:
@@ -106,37 +116,58 @@ class AxServeEventStreamManager:
 
 
 class AxServeInstancesManager:
+    _instances: WeakValueDictionary[str, AxServeObject]
+
     def __init__(self):
         self._instances = WeakValueDictionary()
 
     def _register_instance(self, i: str, o: AxServeObject):
         self._instances[i] = o
 
-    def _unregister_instance(self, i: str):
-        del self._instances[i]
+    def _unregister_instance(
+        self, i: str, default: T | None = None
+    ) -> AxServeObject | T | None:
+        return self._instances.pop(i, default)
 
     def _has_instance(self, i: str) -> bool:
         return i in self._instances
 
-    def _get_instance(self, i: str) -> AxServeObject | None:
-        return self._instances.get(i)
+    def _get_instance(
+        self, i: str, default: T | None = None
+    ) -> AxServeObject | T | None:
+        return self._instances.get(i, default)
 
 
 class AxServeMembersManager:
+    _instance: str
+    _stub: ActiveStub
+    _context_manager: AxServeEventContextManager
+
+    _members_dict: dict[str, AxServeMember]
+    _properties_list: list[AxServeProperty]
+    _properties_dict: dict[str, AxServeProperty]
+    _methods_list: list[AxServeMethod]
+    _methods_dict: dict[str, AxServeMethod]
+    _events_list: list[AxServeEvent]
+    _events_dict: dict[str, AxServeEvent]
+
     def __init__(
         self,
         instance: str,
         stub: ActiveStub,
         context_manager: AxServeEventContextManager,
     ):
-        self._members_dict: dict[str, AxServeMember] = {}
+        self._instance = instance
+        self._stub = stub
+        self._context_manager = context_manager
 
-        self._properties_list: list[AxServeProperty] = []
-        self._properties_dict: dict[str, AxServeProperty] = {}
-        self._methods_list: list[AxServeMethod] = []
-        self._methods_dict: dict[str, AxServeMethod] = {}
-        self._events_list: list[AxServeEvent] = []
-        self._events_dict: dict[str, AxServeEvent] = {}
+        self._members_dict = {}
+        self._properties_list = []
+        self._properties_dict = {}
+        self._methods_list = []
+        self._methods_dict = {}
+        self._events_list = []
+        self._events_dict = {}
 
         request = active_pb2.DescribeRequest()
         request.instance = instance
@@ -204,7 +235,9 @@ class AxServeMembersManagerCache:
 
     def _get_members_manager(self, c: str, i: str) -> AxServeMembersManager:
         if c not in self._members_managers:
-            members_manager = AxServeMembersManager(i, self._stub, self._context_manager)
+            members_manager = AxServeMembersManager(
+                i, self._stub, self._context_manager
+            )
             self._members_managers[c] = members_manager
         members_manager = self._members_managers[c]
         return members_manager
@@ -240,7 +273,9 @@ class AxServeEventLoop:
 
     @contextlib.contextmanager
     def _create_handle_event_context(self, handle_event: active_pb2.HandleEventRequest):
-        event_context_stack = self._event_context_manager._get_handle_event_context_stack()
+        event_context_stack = (
+            self._event_context_manager._get_handle_event_context_stack()
+        )
         event_context_stack.append(handle_event)
         try:
             yield
@@ -260,18 +295,25 @@ class AxServeEventLoop:
                     if handle_event.is_pong:
                         return self._return_code
                     with self._create_handle_event_context(handle_event):
+                        instance_id = handle_event.instance
+                        instance = self._instances_manager._get_instance(instance_id)
+                        if instance is None:
+                            continue
+                        ax = instance.__axserve__
+                        if ax is None:
+                            continue
+                        mm = ax._members_manager
+                        if mm is None:
+                            continue
+                        event_callback = mm._get_event(handle_event.index)
                         args = [ValueFromVariant(arg) for arg in handle_event.arguments]
-                        if not self._instances_manager._has_instance(handle_event.instance):
-                            continue
-                        instance = self._instances_manager._get_instance(handle_event.instance)
-                        if not instance:
-                            continue
-                        if instance.__axserve__ is None:
-                            continue
-                        event_callback = instance.__axserve__._members_manager._get_event(handle_event.index)
                         event_callback(instance, *args)
             except grpc.RpcError as exc:
-                if not (self._is_exitting and isinstance(exc, grpc.Call) and exc.code() == grpc.StatusCode.CANCELLED):
+                if not (
+                    self._is_exitting
+                    and isinstance(exc, grpc.Call)
+                    and exc.code() == grpc.StatusCode.CANCELLED
+                ):
                     raise exc
         return self._return_code
 
@@ -344,8 +386,13 @@ class AxServeEventLoopManager:
                 self._event_stream_manager,
             )
         if not self._event_loop_thread:
-            self._event_loop_thread = Thread(target=self._event_loop_exec_target, daemon=True)
+            self._event_loop_thread = Thread(
+                target=self._event_loop_exec_target, daemon=True
+            )
             self._event_loop_thread.start()
+
+    def is_running(self) -> bool:
+        return self._event_loop.is_running() if self._event_loop is not None else False
 
     def stop(self) -> None:
         if self._event_loop:

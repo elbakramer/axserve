@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from types import TracebackType
 from typing import Protocol
 
 from axserve.common.protocol import check_names_in_mro
@@ -32,16 +33,23 @@ class AsyncAcquireable(Protocol):
         raise NotImplementedError()
 
     @abstractmethod
-    async def __aenter__(self) -> bool:
+    async def __aenter__(self) -> None:
         raise NotImplementedError()
 
     @abstractmethod
-    async def __aexit__(self, exc_type, exc_value, traceback) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
         raise NotImplementedError()
 
     @classmethod
     def __subclasshook__(cls, __subclass: type) -> bool:
         if cls is AsyncAcquireable:
-            if check_names_in_mro(["acquire", "release", "__enter__", "__exit__"], __subclass):
+            if check_names_in_mro(
+                ["acquire", "release", "__enter__", "__exit__"], __subclass
+            ):
                 return True
         return super().__subclasshook__(__subclass)

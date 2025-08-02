@@ -77,7 +77,9 @@ class AxServeProperty(Generic[T]):
     @overload
     def __init__(self, arg: Callable[[Any], T]) -> None: ...
 
-    def __init__(self, arg: int | active_pb2.PropertyInfo | Callable[[Any], T] | None = None) -> None:
+    def __init__(
+        self, arg: int | active_pb2.PropertyInfo | Callable[[Any], T] | None = None
+    ) -> None:
         self._index: int | None = None
         self._name: str | None = None
         self._info: active_pb2.PropertyInfo | None = None
@@ -102,18 +104,104 @@ class AxServeProperty(Generic[T]):
         self._info = info
 
     def _get_index(self, instance: AxServeObject) -> int:
-        if self._index is not None:
-            return self._index
-        elif instance.__axserve__ is None:
+        index = self._index
+        if index is not None:
+            return index
+        ax = instance.__axserve__
+        if ax is None:
             msg = "Internal values are not initialized"
             raise ValueError(msg)
-        elif self._name is not None and instance.__axserve__._members_manager._has_member_name(self._name):
-            member = instance.__axserve__._members_manager._get_member_by_name(self._name)
-            prop = member._property
-            if prop and prop._index is not None:
-                return prop._index
-        msg = "Cannot specify index"
-        raise ValueError(msg)
+        mm = ax._members_manager
+        if mm is None:
+            msg = "Members manager is not initialized"
+            raise ValueError(msg)
+        name = self._name
+        if name is None:
+            msg = "Cannot specify member name"
+            raise ValueError(msg)
+        if not mm._has_member_name(name):
+            msg = f"Object has no member '{name}'"
+            raise ValueError(msg)
+        member = mm._get_member_by_name(name)
+        prop = member._property
+        if prop is None:
+            msg = f"Object member '{name}' is not a property"
+            raise ValueError(msg)
+        index = prop._index
+        if index is None:
+            msg = "Cannot specify property index"
+            raise ValueError(msg)
+        return index
+
+    def _get_value(
+        self,
+        instance: AxServeObject,
+        owner: type | None = None,  # noqa: ARG002
+    ) -> T:
+        ax = instance.__axserve__
+        if ax is None:
+            msg = "Internal values are not initialized"
+            raise ValueError(msg)
+        client = ax._client
+        instance_id = ax._instance
+        if not (client and instance_id):
+            msg = "Internal values are not initialized"
+            raise ValueError(msg)
+        if (
+            self._info is not None
+            and not self._info.is_readable
+            and self._info.is_writable
+        ):
+            msg = "This property is not readable"
+            raise AttributeError(msg)
+        index = self._get_index(instance)
+        request = active_pb2.GetPropertyRequest()
+        request.instance = instance_id
+        request.index = index
+        client._event_context_manager._contextualize_request(request)
+        response = client._stub.GetProperty(request)
+        response = typing.cast(active_pb2.GetPropertyResponse, response)
+        return ValueFromVariant(response.value)
+
+    def _get(
+        self,
+        instance: AxServeObject | None = None,
+        owner: type | None = None,
+    ) -> AxServeProperty[T] | T:
+        if instance is None:
+            return self
+        return self._get_value(instance, owner)
+
+    def _set(
+        self,
+        instance: AxServeObject,
+        value: T,
+    ) -> active_pb2.SetPropertyResponse:
+        ax = instance.__axserve__
+        if ax is None:
+            msg = "Internal values are not initialized"
+            raise ValueError(msg)
+        client = ax._client
+        instance_id = ax._instance
+        if not (client and instance_id):
+            msg = "Internal values are not initialized"
+            raise ValueError(msg)
+        if (
+            self._info is not None
+            and not self._info.is_writable
+            and self._info.is_readable
+        ):
+            msg = "This property is not writable"
+            raise AttributeError(msg)
+        index = self._get_index(instance)
+        request = active_pb2.SetPropertyRequest()
+        request.instance = instance_id
+        request.index = index
+        ValueToVariant(value, request.value)
+        client._event_context_manager._contextualize_request(request)
+        response = client._stub.SetProperty(request)
+        response = typing.cast(active_pb2.SetPropertyResponse, response)
+        return response
 
     @overload
     def __get__(self, instance: Any, owner: type | None = None) -> T: ...
@@ -126,45 +214,14 @@ class AxServeProperty(Generic[T]):
         instance: AxServeObject | None = None,
         owner: type | None = None,
     ) -> AxServeProperty[T] | T:
-        if instance is None:
-            return self
-        if instance.__axserve__ is None:
-            msg = "Internal values are not initialized"
-            raise ValueError(msg)
-        if self._info is not None and not self._info.is_readable and self._info.is_writable:
-            msg = "This property is not readable"
-            raise AttributeError(msg)
-        index = self._get_index(instance)
-        stub = instance.__axserve__._client._stub
-        request = active_pb2.GetPropertyRequest()
-        request.instance = instance.__axserve__._instance
-        request.index = index
-        instance.__axserve__._client._event_context_manager._contextualize_request(request)
-        response = stub.GetProperty(request)
-        response = typing.cast(active_pb2.GetPropertyResponse, response)
-        return ValueFromVariant(response.value)
+        return self._get(instance, owner)
 
     def __set__(
         self,
         instance: AxServeObject,
         value: T,
     ) -> active_pb2.SetPropertyResponse:
-        if instance.__axserve__ is None:
-            msg = "Internal values are not initialized"
-            raise ValueError(msg)
-        if self._info is not None and not self._info.is_writable and self._info.is_readable:
-            msg = "This property is not writable"
-            raise AttributeError(msg)
-        index = self._get_index(instance)
-        stub = instance.__axserve__._client._stub
-        request = active_pb2.SetPropertyRequest()
-        request.instance = instance.__axserve__._instance
-        request.index = index
-        ValueToVariant(value, request.value)
-        instance.__axserve__._client._event_context_manager._contextualize_request(request)
-        response = stub.SetProperty(request)
-        response = typing.cast(active_pb2.SetPropertyResponse, response)
-        return response
+        return self._set(instance, value)
 
 
 class AxServeMethodType(ObjectProxy, Generic[P, R]):
@@ -193,7 +250,13 @@ class AxServeMethod(Generic[P, R]):
     @overload
     def __init__(self, arg: Callable[Concatenate[Any, P], R]) -> None: ...
 
-    def __init__(self, arg: int | active_pb2.MethodInfo | Callable[Concatenate[Any, P], R] | None = None) -> None:
+    def __init__(
+        self,
+        arg: int
+        | active_pb2.MethodInfo
+        | Callable[Concatenate[Any, P], R]
+        | None = None,
+    ) -> None:
         self._index: int | None = None
         self._name: str | None = None
         self._signature: inspect.Signature | None = None
@@ -231,18 +294,34 @@ class AxServeMethod(Generic[P, R]):
         self._info = info
 
     def _get_index(self, instance: AxServeObject) -> int:
-        if self._index is not None:
-            return self._index
-        elif instance.__axserve__ is None:
+        index = self._index
+        if index is not None:
+            return index
+        ax = instance.__axserve__
+        if ax is None:
             msg = "Internal values are not initialized"
             raise ValueError(msg)
-        elif self._name is not None and instance.__axserve__._members_manager._has_member_name(self._name):
-            member = instance.__axserve__._members_manager._get_member_by_name(self._name)
-            method = member._method
-            if method and method._index is not None:
-                return method._index
-        msg = "Cannot specify index"
-        raise ValueError(msg)
+        mm = ax._members_manager
+        if mm is None:
+            msg = "Members manager is not initialized"
+            raise ValueError(msg)
+        name = self._name
+        if name is None:
+            msg = "Cannot specify member name"
+            raise ValueError(msg)
+        if not mm._has_member_name(name):
+            msg = f"Object has no member '{name}'"
+            raise ValueError(msg)
+        member = mm._get_member_by_name(name)
+        method = member._method
+        if method is None:
+            msg = f"Object member '{name}' is not a method"
+            raise ValueError(msg)
+        index = method._index
+        if index is None:
+            msg = "Cannot specify method index"
+            raise ValueError(msg)
+        return index
 
     def _bind_args(self, *args, **kwargs) -> Sequence[Any]:
         if not self._signature:
@@ -252,24 +331,31 @@ class AxServeMethod(Generic[P, R]):
         return bound_args.args
 
     def __call__(self, instance: AxServeObject, *args: P.args, **kwargs: P.kwargs) -> R:
-        if instance.__axserve__ is None:
+        ax = instance.__axserve__
+        if ax is None:
+            msg = "Internal values are not initialized"
+            raise ValueError(msg)
+        client = ax._client
+        instance_id = ax._instance
+        if not (client and instance_id):
             msg = "Internal values are not initialized"
             raise ValueError(msg)
         index = self._get_index(instance)
-        stub = instance.__axserve__._client._stub
         request = active_pb2.InvokeMethodRequest()
-        request.instance = instance.__axserve__._instance
+        request.instance = instance_id
         request.index = index
         bound_args = self._bind_args(*args, **kwargs)
         for arg in bound_args:
             ValueToVariant(arg, request.arguments.add())
-        instance.__axserve__._client._event_context_manager._contextualize_request(request)
-        response = stub.InvokeMethod(request)
+        client._event_context_manager._contextualize_request(request)
+        response = client._stub.InvokeMethod(request)
         response = typing.cast(active_pb2.InvokeMethodResponse, response)
         return ValueFromVariant(response.return_value)
 
     @overload
-    def __get__(self, instance: Any, owner: type | None = None) -> AxServeMethodType[P, R]: ...
+    def __get__(
+        self, instance: Any, owner: type | None = None
+    ) -> AxServeMethodType[P, R]: ...
 
     @overload
     def __get__(self, instance: None, owner: type) -> AxServeMethod[P, R]: ...
@@ -286,12 +372,12 @@ class AxServeMethod(Generic[P, R]):
 
 class AxServeEventType(
     ObjectProxy,
-    Generic[P],
     Connectable[
         P,
         active_pb2.ConnectEventResponse,
         active_pb2.DisconnectEventResponse,
     ],
+    Generic[P],
 ):
     def __init__(self, func: AxServeEvent[P], instance: AxServeObject) -> None:
         super().__init__(func)
@@ -304,23 +390,31 @@ class AxServeEventType(
     def call(self, *args: P.args, **kwargs: P.kwargs) -> None:
         return self.__call__(*args, **kwargs)
 
-    def connect(self, handler: Callable[P, Any]) -> active_pb2.ConnectEventResponse | None:
+    def connect(
+        self, handler: Callable[P, Any]
+    ) -> active_pb2.ConnectEventResponse | None:
+        response = None
         instance = self._self_instance
-        if instance.__axserve__ is None:
+        ax = instance.__axserve__
+        if ax is None:
             msg = "Internal values are not initialized"
             raise ValueError(msg)
-        response = None
+        client = ax._client
+        instance_id = ax._instance
+        handlers_manager = ax._event_handlers_manager
+        if not (client and instance_id and handlers_manager):
+            msg = "Internal values are not initialized"
+            raise ValueError(msg)
         index = self._self_func._get_index(instance)
-        handlers = instance.__axserve__._event_handlers_manager._get_event_handlers(index)
-        handlers_lock = instance.__axserve__._event_handlers_manager._get_event_handlers_lock(index)
+        handlers = handlers_manager._get_event_handlers(index)
+        handlers_lock = handlers_manager._get_event_handlers_lock(index)
         with handlers_lock:
             if not handlers:
-                stub = instance.__axserve__._client._stub
                 request = active_pb2.ConnectEventRequest()
-                request.instance = instance.__axserve__._instance
+                request.instance = instance_id
                 request.index = index
-                instance.__axserve__._client._event_context_manager._contextualize_request(request)
-                response = stub.ConnectEvent(request)
+                client._event_context_manager._contextualize_request(request)
+                response = client._stub.ConnectEvent(request)
                 response = typing.cast(active_pb2.ConnectEventResponse, response)
                 if not response.successful:
                     msg = "Failed to connect event"
@@ -328,24 +422,32 @@ class AxServeEventType(
             handlers.append(handler)
         return response
 
-    def disconnect(self, handler: Callable[P, Any]) -> active_pb2.DisconnectEventResponse | None:
+    def disconnect(
+        self, handler: Callable[P, Any]
+    ) -> active_pb2.DisconnectEventResponse | None:
+        response = None
         instance = self._self_instance
-        if instance.__axserve__ is None:
+        ax = instance.__axserve__
+        if ax is None:
             msg = "Internal values are not initialized"
             raise ValueError(msg)
-        response = None
+        client = ax._client
+        instance_id = ax._instance
+        handlers_manager = ax._event_handlers_manager
+        if not (client and instance_id and handlers_manager):
+            msg = "Internal values are not initialized"
+            raise ValueError(msg)
         index = self._self_func._get_index(instance)
-        handlers = instance.__axserve__._event_handlers_manager._get_event_handlers(index)
-        handlers_lock = instance.__axserve__._event_handlers_manager._get_event_handlers_lock(index)
+        handlers = handlers_manager._get_event_handlers(index)
+        handlers_lock = handlers_manager._get_event_handlers_lock(index)
         with handlers_lock:
             handlers.remove(handler)
             if not handlers:
-                stub = instance.__axserve__._client._stub
                 request = active_pb2.DisconnectEventRequest()
-                request.instance = instance.__axserve__._instance
+                request.instance = instance_id
                 request.index = index
-                instance.__axserve__._client._event_context_manager._contextualize_request(request)
-                response = stub.DisconnectEvent(request)
+                client._event_context_manager._contextualize_request(request)
+                response = client._stub.DisconnectEvent(request)
                 response = typing.cast(active_pb2.DisconnectEventResponse, response)
                 if not response.successful:
                     msg = "Failed to disconnect event"
@@ -366,7 +468,13 @@ class AxServeEvent(Generic[P]):
     @overload
     def __init__(self, arg: Callable[Concatenate[Any, P], Any]) -> None: ...
 
-    def __init__(self, arg: int | active_pb2.EventInfo | Callable[Concatenate[Any, P], Any] | None = None) -> None:
+    def __init__(
+        self,
+        arg: int
+        | active_pb2.EventInfo
+        | Callable[Concatenate[Any, P], Any]
+        | None = None,
+    ) -> None:
         self._index: int | None = None
         self._name: str | None = None
         self._signature: inspect.Signature | None = None
@@ -403,33 +511,58 @@ class AxServeEvent(Generic[P]):
         self._info = info
 
     def _get_index(self, instance: AxServeObject) -> int:
-        if self._index is not None:
-            return self._index
-        elif instance.__axserve__ is None:
+        index = self._index
+        if index is not None:
+            return index
+        ax = instance.__axserve__
+        if ax is None:
             msg = "Internal values are not initialized"
             raise ValueError(msg)
-        elif self._name is not None and instance.__axserve__._members_manager._has_member_name(self._name):
-            member = instance.__axserve__._members_manager._get_member_by_name(self._name)
-            event = member._event
-            if event and event._index is not None:
-                return event._index
-        msg = "Cannot specify index"
-        raise ValueError(msg)
+        mm = ax._members_manager
+        if mm is None:
+            msg = "Members manager is not initialized"
+            raise ValueError(msg)
+        name = self._name
+        if name is None:
+            msg = "Cannot specify member name"
+            raise ValueError(msg)
+        if not mm._has_member_name(name):
+            msg = f"Object has no member '{name}'"
+            raise ValueError(msg)
+        member = mm._get_member_by_name(name)
+        event = member._event
+        if event is None:
+            msg = f"Object member '{name}' is not a event"
+            raise ValueError(msg)
+        index = event._index
+        if index is None:
+            msg = "Cannot specify event index"
+            raise ValueError(msg)
+        return index
 
-    def __call__(self, instance: AxServeObject, *args: P.args, **kwargs: P.kwargs) -> None:
-        if instance.__axserve__ is None:
+    def __call__(
+        self, instance: AxServeObject, *args: P.args, **kwargs: P.kwargs
+    ) -> None:
+        ax = instance.__axserve__
+        if ax is None:
+            msg = "Internal values are not initialized"
+            raise ValueError(msg)
+        handlers_manager = ax._event_handlers_manager
+        if not handlers_manager:
             msg = "Internal values are not initialized"
             raise ValueError(msg)
         index = self._get_index(instance)
-        handlers = instance.__axserve__._event_handlers_manager._get_event_handlers(index)
-        handlers_lock = instance.__axserve__._event_handlers_manager._get_event_handlers_lock(index)
+        handlers = handlers_manager._get_event_handlers(index)
+        handlers_lock = handlers_manager._get_event_handlers_lock(index)
         with handlers_lock:
             handlers = list(handlers)
         for handler in handlers:
             handler(*args, **kwargs)
 
     @overload
-    def __get__(self, instance: Any, owner: type | None = None) -> AxServeEventType[P]: ...
+    def __get__(
+        self, instance: Any, owner: type | None = None
+    ) -> AxServeEventType[P]: ...
 
     @overload
     def __get__(self, instance: None, owner: type) -> AxServeEvent[P]: ...
@@ -446,14 +579,16 @@ class AxServeEvent(Generic[P]):
 
 class AxServeMemberType(
     ObjectProxy,
-    Generic[T, P, R, Q],
     Connectable[
         Q,
         active_pb2.ConnectEventResponse,
         active_pb2.DisconnectEventResponse,
     ],
+    Generic[T, P, R, Q],
 ):
-    def __init__(self, member: AxServeMember[T, P, R, Q], instance: AxServeObject) -> None:
+    def __init__(
+        self, member: AxServeMember[T, P, R, Q], instance: AxServeObject
+    ) -> None:
         super().__init__(member)
         self._self_mem = member
         self._self_instance = instance
@@ -488,10 +623,14 @@ class AxServeMemberType(
     def call(self, *args, **kwargs) -> R | None:
         return self.__call__(*args, **kwargs)
 
-    def connect(self, handler: Callable[Q, Any]) -> active_pb2.ConnectEventResponse | None:
+    def connect(
+        self, handler: Callable[Q, Any]
+    ) -> active_pb2.ConnectEventResponse | None:
         return self.event.connect(handler)
 
-    def disconnect(self, handler: Callable[Q, Any]) -> active_pb2.DisconnectEventResponse | None:
+    def disconnect(
+        self, handler: Callable[Q, Any]
+    ) -> active_pb2.DisconnectEventResponse | None:
         return self.event.disconnect(handler)
 
 
@@ -528,7 +667,10 @@ class AxServeMember(Generic[T, P, R, Q]):
     def __set_name__(self, owner, name: str) -> None:
         self._name = name
 
-    def _set_info(self, info: active_pb2.PropertyInfo | active_pb2.MethodInfo | active_pb2.EventInfo) -> None:
+    def _set_info(
+        self,
+        info: active_pb2.PropertyInfo | active_pb2.MethodInfo | active_pb2.EventInfo,
+    ) -> None:
         if isinstance(info, active_pb2.PropertyInfo):
             if self._property:
                 self._property._set_info(info)
@@ -546,7 +688,8 @@ class AxServeMember(Generic[T, P, R, Q]):
 
     @classmethod
     def from_info(
-        cls, info: active_pb2.PropertyInfo | active_pb2.MethodInfo | active_pb2.EventInfo
+        cls,
+        info: active_pb2.PropertyInfo | active_pb2.MethodInfo | active_pb2.EventInfo,
     ) -> AxServeMember[T, P, R, Q]:
         instance = cls()
         if isinstance(info, active_pb2.PropertyInfo):
@@ -566,12 +709,22 @@ class AxServeMember(Generic[T, P, R, Q]):
     @overload
     def __get__(
         self, instance: Any, owner: type | None = None
-    ) -> T | AxServeMethodType[P, R] | AxServeEventType[Q] | AxServeMemberType[T, P, R, Q]: ...
+    ) -> (
+        T
+        | AxServeMethodType[P, R]
+        | AxServeEventType[Q]
+        | AxServeMemberType[T, P, R, Q]
+    ): ...
 
     @overload
     def __get__(
         self, instance: None, owner: type
-    ) -> AxServeMember[T, P, R, Q] | AxServeProperty[T] | AxServeMethod[P, R] | AxServeEvent[Q]: ...
+    ) -> (
+        AxServeMember[T, P, R, Q]
+        | AxServeProperty[T]
+        | AxServeMethod[P, R]
+        | AxServeEvent[Q]
+    ): ...
 
     def __get__(
         self,

@@ -2,8 +2,6 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
-      - id: fix-encoding-pragma
-        args: ["--remove"]
       - id: mixed-line-ending
         args: ["--fix=lf"]
       - id: end-of-file-fixer
@@ -20,6 +18,11 @@ repos:
       - id: check-toml
       - id: check-xml
       - id: check-yaml
+
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.20.0
+    hooks:
+      - id: pyupgrade
 
   - repo: https://github.com/codespell-project/codespell
     rev: v2.2.6

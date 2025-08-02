@@ -36,7 +36,9 @@ from win32api import ExpandEnvironmentStrings
 from win32api import RegOpenKey
 from win32api import RegQueryValue
 from win32api import RegQueryValueEx
-from win32com.client.build import MakePublicAttributeName as _MakePublicAttributeName  # type: ignore
+from win32com.client.build import (
+    MakePublicAttributeName as _MakePublicAttributeName,  # type: ignore
+)
 from win32com.client.genpy import Generator
 from win32com.client.genpy import MakeEventMethodName as _MakeEventMethodName
 from win32com.client.selecttlb import EnumKeys
@@ -116,7 +118,9 @@ def GetLatestTypelibSpecFromSpecs(specs: Sequence[TypelibSpec]) -> TypelibSpec |
     specs_grouped_by_version = [(k, list(g)) for k, g in specs_grouped_by_version]
     specs_latest = sorted(specs_grouped_by_version, key=lambda kg: kg[0])[-1][1]
     specs_latest_by_lcid = {spec.lcid: spec for spec in specs_latest}
-    spec = specs_latest_by_lcid.get(0) or next(iter(specs_latest_by_lcid.values()), None)
+    spec = specs_latest_by_lcid.get(0) or next(
+        iter(specs_latest_by_lcid.values()), None
+    )
     return spec
 
 
@@ -242,7 +246,9 @@ class StubGenerator:
         if arg_flag & pythoncom.PARAMFLAG_FHASDEFAULT:
             arg_default = arg_desc[2]
             if isinstance(arg_default, datetime.datetime):
-                arg_default = ast.Tuple([ast.Constant(v) for v in arg_default.utctimetuple()])
+                arg_default = ast.Tuple(
+                    [ast.Constant(v) for v in arg_default.utctimetuple()]
+                )
             elif isinstance(arg_default, TimeType):
                 arg_default = ast.Call(
                     ast.Name("Time", ast.Load()),
@@ -330,7 +336,10 @@ class StubGenerator:
             arg_default = self.MakeDefaultArg(arg_desc)
 
             if arg_default is None and set_defaults:
-                if arg_desc[1] & (pythoncom.PARAMFLAG_FOUT | pythoncom.PARAMFLAG_FIN) == pythoncom.PARAMFLAG_FOUT:
+                if (
+                    arg_desc[1] & (pythoncom.PARAMFLAG_FOUT | pythoncom.PARAMFLAG_FIN)
+                    == pythoncom.PARAMFLAG_FOUT
+                ):
                     arg_default = def_out_arg
                 elif named_arg:
                     if arg >= first_opt_arg:
@@ -414,7 +423,9 @@ class StubGenerator:
                                             ast.Name("self", ast.Load()),
                                             conversion=114,
                                         ),
-                                        ast.Constant(f"' object has no attribute '{name}'"),
+                                        ast.Constant(
+                                            f"' object has no attribute '{name}'"
+                                        ),
                                     ]
                                 )
                             ],
@@ -423,12 +434,18 @@ class StubGenerator:
                     )
                 )
             else:
-                func_body.append(ast.Raise(ast.Call(ast.Name("NotImplementedError", ast.Load()), [], [])))
+                func_body.append(
+                    ast.Raise(
+                        ast.Call(ast.Name("NotImplementedError", ast.Load()), [], [])
+                    )
+                )
 
             if is_getter:
                 decorator_list = [ast.Name("property", ast.Load())]
             elif is_setter:
-                decorator_list = [ast.Attribute(ast.Name(name, ast.Load()), "setter", ast.Load())]
+                decorator_list = [
+                    ast.Attribute(ast.Name(name, ast.Load()), "setter", ast.Load())
+                ]
             else:
                 decorator_list = []
         else:
@@ -436,11 +453,23 @@ class StubGenerator:
                 func_body.append(ast.Expr(ast.Constant(Ellipsis)))
 
             if is_sink:
-                decorator_list = [ast.Attribute(ast.Name("decorator", ast.Load()), "event", ast.Load())]
+                decorator_list = [
+                    ast.Attribute(
+                        ast.Name("decorator", ast.Load()), "event", ast.Load()
+                    )
+                ]
             elif is_getter or is_setter:
-                decorator_list = [ast.Attribute(ast.Name("decorator", ast.Load()), "property", ast.Load())]
+                decorator_list = [
+                    ast.Attribute(
+                        ast.Name("decorator", ast.Load()), "property", ast.Load()
+                    )
+                ]
             else:
-                decorator_list = [ast.Attribute(ast.Name("decorator", ast.Load()), "method", ast.Load())]
+                decorator_list = [
+                    ast.Attribute(
+                        ast.Name("decorator", ast.Load()), "method", ast.Load()
+                    )
+                ]
 
         return_type = entry.GetResultName()
 
@@ -454,14 +483,20 @@ class StubGenerator:
         returns = ast.Name(return_type, ast.Load())
 
         if name == "__iter__":
-            returns = ast.Subscript(ast.Name("Iterator", ast.Load()), returns, ast.Load())
+            returns = ast.Subscript(
+                ast.Name("Iterator", ast.Load()), returns, ast.Load()
+            )
             self._used_iterator = True
         if name == "__aiter__":
-            returns = ast.Subscript(ast.Name("AsyncIterator", ast.Load()), returns, ast.Load())
+            returns = ast.Subscript(
+                ast.Name("AsyncIterator", ast.Load()), returns, ast.Load()
+            )
             self._used_async_iterator = True
 
         if is_async:
-            func_def = ast.AsyncFunctionDef(name, args, func_body, decorator_list, returns)
+            func_def = ast.AsyncFunctionDef(
+                name, args, func_body, decorator_list, returns
+            )
         else:
             func_def = ast.FunctionDef(name, args, func_body, decorator_list, returns)
 
@@ -498,7 +533,9 @@ class StubGenerator:
             progid = None
 
         if progid:
-            progid_assign = ast.Assign([ast.Name("__PROGID__", ast.Store())], ast.Constant(progid))
+            progid_assign = ast.Assign(
+                [ast.Name("__PROGID__", ast.Store())], ast.Constant(progid)
+            )
             class_body_assigns.append(progid_assign)
 
         class_body.extend(class_body_assigns)
@@ -528,13 +565,19 @@ class StubGenerator:
                     func_def = self.MakeMethodFunctionDef(entry, "__len__")
                     class_body.append(func_def)
                 elif name_lower == "item":
-                    func_def = self.MakeMethodFunctionDef(entry, "__getitem__", is_async=is_async)
+                    func_def = self.MakeMethodFunctionDef(
+                        entry, "__getitem__", is_async=is_async
+                    )
                     class_body.append(func_def)
                 elif name_lower == "value":
-                    func_def = self.MakeMethodFunctionDef(entry, "__call__", is_async=is_async)
+                    func_def = self.MakeMethodFunctionDef(
+                        entry, "__call__", is_async=is_async
+                    )
                     class_body.append(func_def)
                 elif name_lower == "_newenum":
-                    func_def = self.MakeMethodFunctionDef(entry, "__aiter__" if is_async else "__iter__")
+                    func_def = self.MakeMethodFunctionDef(
+                        entry, "__aiter__" if is_async else "__iter__"
+                    )
                     class_body.append(func_def)
                 else:
                     func_def = self.MakeMethodFunctionDef(
@@ -560,13 +603,19 @@ class StubGenerator:
                     func_def = self.MakeMethodFunctionDef(entry, "__len__")
                     class_body.append(func_def)
                 elif name_lower == "item":
-                    func_def = self.MakeMethodFunctionDef(entry, "__getitem__", is_async=is_async)
+                    func_def = self.MakeMethodFunctionDef(
+                        entry, "__getitem__", is_async=is_async
+                    )
                     class_body.append(func_def)
                 elif name_lower == "value":
-                    func_def = self.MakeMethodFunctionDef(entry, "__call__", is_async=is_async)
+                    func_def = self.MakeMethodFunctionDef(
+                        entry, "__call__", is_async=is_async
+                    )
                     class_body.append(func_def)
                 elif name_lower == "_newenum":
-                    func_def = self.MakeMethodFunctionDef(entry, "__aiter__" if is_async else "__iter__")
+                    func_def = self.MakeMethodFunctionDef(
+                        entry, "__aiter__" if is_async else "__iter__"
+                    )
                     class_body.append(func_def)
                 else:
                     if is_sink:
@@ -609,13 +658,19 @@ class StubGenerator:
                     func_def = self.MakeMethodFunctionDef(entry, "__len__")
                     class_body.append(func_def)
                 elif name_lower == "item":
-                    func_def = self.MakeMethodFunctionDef(entry, "__getitem__", is_async=is_async)
+                    func_def = self.MakeMethodFunctionDef(
+                        entry, "__getitem__", is_async=is_async
+                    )
                     class_body.append(func_def)
                 elif name_lower == "value":
-                    func_def = self.MakeMethodFunctionDef(entry, "__call__", is_async=is_async)
+                    func_def = self.MakeMethodFunctionDef(
+                        entry, "__call__", is_async=is_async
+                    )
                     class_body.append(func_def)
                 elif name_lower == "_newenum":
-                    func_def = self.MakeMethodFunctionDef(entry, "__aiter__" if is_async else "__iter__")
+                    func_def = self.MakeMethodFunctionDef(
+                        entry, "__aiter__" if is_async else "__iter__"
+                    )
                     class_body.append(func_def)
                 else:
                     if is_sink:
@@ -673,15 +728,21 @@ class StubGenerator:
 
         if hasattr(ole_item, "interfaces"):
             class_bases_interfaces = [
-                ast.Name(interface.python_name, ast.Load()) for interface, flag in ole_item.interfaces
+                ast.Name(interface.python_name, ast.Load())
+                for interface, flag in ole_item.interfaces
             ]
             class_bases.extend(class_bases_interfaces)
 
         if hasattr(ole_item, "sources"):
-            class_bases_sources = [ast.Name(source.python_name, ast.Load()) for source, flag in ole_item.sources]
+            class_bases_sources = [
+                ast.Name(source.python_name, ast.Load())
+                for source, flag in ole_item.sources
+            ]
             class_bases.extend(class_bases_sources)
 
-        if not is_base and (hasattr(ole_item, "interfaces") or hasattr(ole_item, "sources")):
+        if not is_base and (
+            hasattr(ole_item, "interfaces") or hasattr(ole_item, "sources")
+        ):
             class_bases.append(ast.Name("AxServeObject", ast.Load()))
 
         class_def = ast.ClassDef(class_name, class_bases, [], class_body, [])
@@ -693,7 +754,9 @@ class StubGenerator:
         import_froms = []
         import_froms.append(ast.ImportFrom("typing", [ast.alias("Any")], 0))
         if self._used_async_iterator:
-            import_froms.append(ast.ImportFrom("typing", [ast.alias("AsyncIterator")], 0))
+            import_froms.append(
+                ast.ImportFrom("typing", [ast.alias("AsyncIterator")], 0)
+            )
         if self._used_iterator:
             import_froms.append(ast.ImportFrom("typing", [ast.alias("Iterator")], 0))
         if self._used_emtpy:
@@ -703,11 +766,17 @@ class StubGenerator:
         if self._used_time:
             import_froms.append(ast.ImportFrom("pywintypes", [ast.alias("Time")], 0))
         import_froms.append(
-            ast.ImportFrom("axserve.aio.client" if self._is_async else "axserve.client", [ast.alias("decorator")], 0)
+            ast.ImportFrom(
+                "axserve.aio.client" if self._is_async else "axserve.client",
+                [ast.alias("decorator")],
+                0,
+            )
         )
         import_froms.append(
             ast.ImportFrom(
-                "axserve.aio.client.stub" if self._is_async else "axserve.client.stub", [ast.alias("AxServeObject")], 0
+                "axserve.aio.client.stub" if self._is_async else "axserve.client.stub",
+                [ast.alias("AxServeObject")],
+                0,
             )
         )
         class_defs = []

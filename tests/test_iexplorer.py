@@ -21,7 +21,7 @@ import time
 
 
 def test_dynamic_iexplorer():
-    from axserve.client.stub import AxServeObject
+    from axserve.client.stub import AxServeObject  # noqa: PLC0415
 
     on_visible_fired = threading.Event()
 
@@ -38,10 +38,10 @@ def test_dynamic_iexplorer():
 
 
 def test_declarative_iexplorer():
-    from axserve.client.descriptor import AxServeEvent
-    from axserve.client.descriptor import AxServeMethod
-    from axserve.client.descriptor import AxServeProperty
-    from axserve.client.stub import AxServeObject
+    from axserve.client.descriptor import AxServeEvent  # noqa: PLC0415
+    from axserve.client.descriptor import AxServeMethod  # noqa: PLC0415
+    from axserve.client.descriptor import AxServeProperty  # noqa: PLC0415
+    from axserve.client.stub import AxServeObject  # noqa: PLC0415
 
     class IExplorer(AxServeObject):
         __CLSID__ = "InternetExplorer.Application"

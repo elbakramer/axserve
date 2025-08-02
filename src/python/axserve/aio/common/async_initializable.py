@@ -16,65 +16,29 @@
 
 from __future__ import annotations
 
-import asyncio
-
-from abc import abstractmethod
-from asyncio import Event
-from asyncio import Lock
-from asyncio import Task
-from collections.abc import Coroutine
-from collections.abc import Mapping
+from collections.abc import Awaitable
+from contextlib import AbstractAsyncContextManager
 from types import TracebackType
-from typing import Any
 from typing import Protocol
+from typing import TypeVar
 
 
-class AsyncInitializableInternals:
-    _initializing: Lock
-    _initialized: Event
-
-    _coroutine: Coroutine[Any, Any, None]
-    _task: Task[None]
-
-    def __init__(
-        self,
-        instance: AsyncInitializable,
-        args: tuple[str],
-        kwargs: Mapping[str, Any],
-    ):
-        self._initializing = Lock()
-        self._initialized = Event()
-
-        self._coroutine = self.initialize(instance, args, kwargs)
-        self._task = asyncio.create_task(self._coroutine)
-
-    async def initialize(
-        self,
-        instance: AsyncInitializable,
-        args: tuple[str],
-        kwargs: Mapping[str, Any],
-    ) -> None:
-        async with self._initializing:
-            self._initialized.clear()
-            await instance.__ainit__(
-                *args,
-                **kwargs,
-            )
-            self._initialized.set()
+T_co = TypeVar("T_co", covariant=True)
 
 
-class AsyncInitializable(Protocol):
-    __async__: AsyncInitializableInternals
+class AsyncInitializable(
+    AbstractAsyncContextManager[T_co],
+    Awaitable[T_co],
+    Protocol[T_co],
+):
+    async def __ainit__(self):
+        return
 
-    @abstractmethod
-    async def __ainit__(self, *args, **kwargs) -> None:
-        raise NotImplementedError()
+    async def __afinalize__(self):
+        return
 
-    def __init__(self, *args, **kwargs) -> None:
-        self.__async__ = AsyncInitializableInternals(self, args, kwargs)
-
-    async def __aenter__(self):
-        await self.__async__._initialized.wait()
+    async def __aenter__(self):  # type: ignore
+        await self.__ainit__()
         return self
 
     async def __aexit__(
@@ -83,4 +47,7 @@ class AsyncInitializable(Protocol):
         exc_value: BaseException | None,
         exc_traceback: TracebackType | None,
     ):
-        return
+        await self.__afinalize__()
+
+    def __await__(self):  # type: ignore
+        return self.__aenter__().__await__()

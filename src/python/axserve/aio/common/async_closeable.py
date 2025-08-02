@@ -32,6 +32,8 @@ class AsyncCloseable(Protocol):
     @classmethod
     def __subclasshook__(cls, __subclass: type) -> bool:
         if cls is AsyncCloseable:
-            if check_name_in_mro("close", __subclass) and inspect.iscoroutinefunction(__subclass.close):
+            if check_name_in_mro("close", __subclass) and inspect.iscoroutinefunction(
+                __subclass.close
+            ):
                 return True
         return super().__subclasshook__(__subclass)

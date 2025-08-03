@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+// SPDX-FileCopyrightText: 2025 Yunseong Hwang
+//
 // SPDX-License-Identifier: Apache-2.0
 
 #include "outbound_item.h"
@@ -85,7 +87,8 @@ void OutboundItem::cancel() {
   m_condition.wakeOne();
 }
 
-void OutboundItem::sendTo(const QList<QSharedPointer<OutboundReactor>> &reactors
+void OutboundItem::sendTo(
+    const QList<QSharedPointer<OutboundReactor>> &reactors
 ) {
   if (started()) {
     return;

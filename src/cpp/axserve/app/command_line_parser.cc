@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+// SPDX-FileCopyrightText: 2025 Yunseong Hwang
+//
 // SPDX-License-Identifier: Apache-2.0
 
 #include "command_line_parser.h"
@@ -115,10 +117,12 @@ CommandLineParser::CommandLineParser()
   app.add_option(
          "--ssl-client-cert-request-type", config.sslClientCertRequestType
   )
-      ->transform(CLI::IsMember(
-          {"dont-request", "request-but-dont-verify", "request-and-verify",
-           "require-but-dont-verify", "require-and-verify"}
-      ));
+      ->transform(
+          CLI::IsMember(
+              {"dont-request", "request-but-dont-verify", "request-and-verify",
+               "require-but-dont-verify", "require-and-verify"}
+          )
+      );
 
   app.option_defaults()->group("Server Authentication");
   app.add_option("--auth-api-key-file", config.authApiKeyFile)
@@ -126,13 +130,16 @@ CommandLineParser::CommandLineParser()
 
   app.option_defaults()->group("Logging");
   app.add_option("--logging-level", config.loggingLevel)
-      ->transform(CLI::IsMember({"debug", "warn", "info", "critical", "fatal"})
+      ->transform(
+          CLI::IsMember({"debug", "warn", "info", "critical", "fatal"})
       );
   app.add_option("--logging-format", config.loggingFormat);
   app.add_option("--logging-type", config.loggingType)
-      ->transform(CLI::IsMember(
-          {"console", "file", "file-basic", "file-rotating", "file-daily"}
-      ));
+      ->transform(
+          CLI::IsMember(
+              {"console", "file", "file-basic", "file-rotating", "file-daily"}
+          )
+      );
   app.add_option("--logging-file", config.loggingFile);
 
   app.add_option("--logging-rotating-max-size", config.loggingRotatingMaxSize)

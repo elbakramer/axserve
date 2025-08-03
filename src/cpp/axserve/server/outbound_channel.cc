@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+// SPDX-FileCopyrightText: 2025 Yunseong Hwang
+//
 // SPDX-License-Identifier: Apache-2.0
 
 #include "outbound_channel.h"
@@ -26,7 +28,8 @@ OutboundChannel::OutboundChannel() {}
 OutboundChannel::OutboundChannel(const QWeakPointer<OutboundReceiver> &receiver)
     : m_receiver(receiver) {}
 
-void OutboundChannel::subscribe(const QWeakPointer<OutboundReceiver> &receiver
+void OutboundChannel::subscribe(
+    const QWeakPointer<OutboundReceiver> &receiver
 ) {
   m_receiver = receiver;
 }

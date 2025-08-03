@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+// SPDX-FileCopyrightText: 2025 Yunseong Hwang
+//
 // SPDX-License-Identifier: Apache-2.0
 
 #include "axserve/common/logging/integration/absl.h"
 
 #include "spdlog/spdlog.h"
 
-std::string_view AbslToSpdlogSink::FormatLogMessage(const absl::LogEntry &entry
-) {
+std::string_view
+AbslToSpdlogSink::FormatLogMessage(const absl::LogEntry &entry) {
   if (ShouldFormatMessage) {
     return entry.text_message_with_prefix();
   } else {

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+// SPDX-FileCopyrightText: 2025 Yunseong Hwang
+//
 // SPDX-License-Identifier: Apache-2.0
 
 #include "clsid_validator.h"
@@ -20,7 +22,7 @@
 #include <combaseapi.h>
 
 CLSIDValidator::CLSIDValidator(QObject *parent)
-    : QValidator(parent){};
+    : QValidator(parent) {};
 
 QValidator::State CLSIDValidator::validate(QString &input, int &pos) const {
   QString in = input;

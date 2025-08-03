@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+// SPDX-FileCopyrightText: 2025 Yunseong Hwang
+//
 // SPDX-License-Identifier: Apache-2.0
 
 #include "outbound_reactor_set.h"
@@ -49,7 +51,8 @@ void OutboundReactorSet::establish(
   m_reactors[reactor->peer()][reactor->uuid()] = reactor;
 }
 
-bool OutboundReactorSet::dissolve(const QSharedPointer<OutboundReactor> &reactor
+bool OutboundReactorSet::dissolve(
+    const QSharedPointer<OutboundReactor> &reactor
 ) {
   QMutexLocker<QMutex> locker(&m_mutex);
   bool removed = m_reactors.value(reactor->peer()).remove(reactor->uuid());

@@ -16,6 +16,8 @@
 
 #include "server.h"
 
+#include <chrono>
+
 #include <QFile>
 
 #include <grpcpp/security/server_credentials.h>
@@ -33,6 +35,7 @@ void Server::initialize() {
   m_service.reset(new Service());
   m_serverBuilder.reset(new grpc::ServerBuilder());
   m_serverBuilder->RegisterService(m_service.get());
+  m_server.reset();
 }
 
 bool Server::addControl(const QString &classId) {
@@ -86,16 +89,20 @@ bool Server::start(const ServerConfig &config) {
           ServerSslClientCertRequestType::DontRequest) {
         sslOptions.client_certificate_request =
             GRPC_SSL_DONT_REQUEST_CLIENT_CERTIFICATE;
-      } else if (config.sslClientCertRequestType == ServerSslClientCertRequestType::RequestButDontVerify) {
+      } else if (config.sslClientCertRequestType ==
+                 ServerSslClientCertRequestType::RequestButDontVerify) {
         sslOptions.client_certificate_request =
             GRPC_SSL_REQUEST_CLIENT_CERTIFICATE_BUT_DONT_VERIFY;
-      } else if (config.sslClientCertRequestType == ServerSslClientCertRequestType::RequestAndVerify) {
+      } else if (config.sslClientCertRequestType ==
+                 ServerSslClientCertRequestType::RequestAndVerify) {
         sslOptions.client_certificate_request =
             GRPC_SSL_REQUEST_CLIENT_CERTIFICATE_AND_VERIFY;
-      } else if (config.sslClientCertRequestType == ServerSslClientCertRequestType::RequireButDontVerify) {
+      } else if (config.sslClientCertRequestType ==
+                 ServerSslClientCertRequestType::RequireButDontVerify) {
         sslOptions.client_certificate_request =
             GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_BUT_DONT_VERIFY;
-      } else if (config.sslClientCertRequestType == ServerSslClientCertRequestType::RequireAndVerify) {
+      } else if (config.sslClientCertRequestType ==
+                 ServerSslClientCertRequestType::RequireAndVerify) {
         sslOptions.client_certificate_request =
             GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_AND_VERIFY;
       }
@@ -130,13 +137,20 @@ bool Server::start(const ServerConfig &config) {
   return is_running;
 }
 
-bool Server::shutdown() {
+bool Server::shutdown(double timeout) {
   bool is_running = isRunning();
   if (is_running) {
-    emit statusChanged(ServerStatus::Stopping);
-    m_server->Shutdown();
+    if (timeout >= 0.0) {
+      using namespace std::chrono;
+      emit statusChanged(ServerStatus::Stopping);
+      auto timeout_duration =
+          duration_cast<system_clock::duration>(duration<double>(timeout));
+      auto deadline = system_clock::now() + timeout_duration;
+      m_server->Shutdown(deadline);
+    } else {
+      m_server->Shutdown();
+    }
   }
-  m_server.reset();
   initialize();
   if (is_running) {
     emit statusChanged(ServerStatus::Stopped);

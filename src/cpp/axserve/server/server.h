@@ -61,7 +61,9 @@ signals:
 
 public slots:
   bool start(const ServerConfig &config = {});
-  bool shutdown(double timeout = 15.0);
+
+  bool shutdownGracefully(double timeout = 15.0);
+  bool shutdown();
 };
 
 #endif // SERVER_H

@@ -41,7 +41,6 @@ from axserve.common.local import LoopLocal
 from axserve.common.registry import check_machine_for_clsid
 from axserve.common.socket import find_free_port
 from axserve.proto import active_pb2
-from axserve.proto.active_pb2_grpc import ActiveAsyncStub
 from axserve.proto.active_pb2_grpc import ActiveStub
 
 
@@ -50,6 +49,8 @@ if TYPE_CHECKING:
     from collections.abc import MutableMapping
 
     from grpc.aio import Channel
+
+    from axserve.proto.active_pb2_grpc import ActiveAsyncStub
 
 
 class AxServeObjectInternals:

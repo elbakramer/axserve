@@ -139,7 +139,7 @@ bool Server::start(const ServerConfig &config) {
   return is_running;
 }
 
-bool Server::shutdown(double timeout) {
+bool Server::shutdownGracefully(double timeout) {
   bool is_running = isRunning();
   if (is_running) {
     if (timeout >= 0.0) {
@@ -159,3 +159,5 @@ bool Server::shutdown(double timeout) {
   }
   return is_running;
 }
+
+bool Server::shutdown() { return shutdownGracefully(); }

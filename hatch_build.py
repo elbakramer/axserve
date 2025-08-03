@@ -17,12 +17,18 @@
 from __future__ import annotations
 
 import re
+import shutil
 import subprocess
 import sys
 
 from pathlib import Path
 from typing import Any
-from typing import override
+
+
+try:
+    from typing import override
+except ImportError:
+    from typing_extensions import override
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 from packaging.requirements import Requirement
@@ -156,13 +162,17 @@ class ProtocBuildHook(BuildHookInterface):
         with open(filename, "r+", encoding="utf-8") as f:
             data = f.read()
             data = re.sub(
-                r"^((import)(\s+)([^\s\._]+)(_pb2)(\s+)(as))",
+                r"^((import)(\s+)([^\s\._]+)(_pb2)(.*))",
                 r"from . \1",
                 data,
                 flags=re.MULTILINE,
             )
             f.seek(0)
             f.write(data)
+
+    @override
+    def dependencies(self) -> list[str]:
+        return ["grpcio-tools>=1.73.1", "mypy-protobuf>=3.6.0"]
 
     @override
     def clean(self, versions: list[str]) -> None:
@@ -178,6 +188,7 @@ class ProtocBuildHook(BuildHookInterface):
         protoc_executable = "./build/amd64/protobuf-release/bin/protoc.exe"
         protoc_gen_grpc_python = "./build/amd64/grpc-release/bin/grpc_python_plugin.exe"
         protoc_gen_mypy = "protoc-gen-mypy"
+        protoc_gen_mypy = shutil.which(protoc_gen_mypy)
 
         protoc_cmds = [
             protoc_executable,
@@ -202,6 +213,10 @@ class ProtocBuildHook(BuildHookInterface):
                 grpc_py_filename = Path(out_dir) / grpc_py_filename
                 if grpc_py_filename.exists():
                     self._fix_import_in_grpc_py(grpc_py_filename)
+                grpc_pyi_filename = source_path.stem + "_pb2_grpc.pyi"
+                grpc_pyi_filename = Path(out_dir) / grpc_pyi_filename
+                if grpc_pyi_filename.exists():
+                    self._fix_import_in_grpc_py(grpc_pyi_filename)
 
     @override
     def finalize(

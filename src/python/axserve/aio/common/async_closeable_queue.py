@@ -23,7 +23,12 @@ from asyncio import QueueEmpty
 from asyncio import QueueFull
 from typing import Any
 from typing import TypeVar
-from typing import override
+
+
+try:
+    from typing import override
+except ImportError:
+    from typing_extensions import override
 
 from axserve.aio.common.async_closeable import AsyncCloseable
 from axserve.common.closeable_queue import Closed as QueueClosed

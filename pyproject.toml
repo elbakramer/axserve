@@ -93,7 +93,11 @@ marker = "platform_system == 'Windows' and (platform_machine == 'AMD64' or platf
 python = ["3.10", "3.11", "3.12"]
 
 [tool.hatch.envs.default]
-dependencies = []
+dependencies = ["reuse>=5.0.2", "bump-my-version>=1.2.1"]
+
+[tool.hatch.envs.default.scripts]
+bump-version = "bump-my-version bump {args:patch}"
+add-license = 'reuse annotate --template copyright --copyright "Yunseong Hwang" --license Apache-2.0 --year 2025 --recursive --skip-unrecognised {args:src}'
 
 [tool.hatch.envs.test]
 dependencies = [

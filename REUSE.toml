@@ -13,13 +13,14 @@ SPDX-License-Identifier = "CC0-1.0"
 
 [[annotations]]
 path = [
+  ".bumpversion.toml",
   ".clang-format",
   ".gitattributes",
   ".gitignore",
   ".gitmodules",
   ".pre-commit-config.yaml",
   "pyproject.toml",
-  "CMakePresets.json"
+  "CMakePresets.json",
 ]
 SPDX-FileCopyrightText = "NONE"
 SPDX-License-Identifier = "CC0-1.0"

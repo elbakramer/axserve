@@ -20,14 +20,14 @@ import platform
 
 from pathlib import Path
 
-from axserve.common.process import KillOnDeletePopen
-from axserve.common.registry import CheckMachineFromCLSID
+from axserve.common.process import ScopedProcess
+from axserve.common.registry import check_machine_for_clsid
 
 
 EXECUTABLE_DIR = Path(__file__).parent / "exe"
 
 
-def FindServerExecutableForMachine(machine: str) -> Path:
+def find_server_executable_for_machine(machine: str) -> Path:
     name = f"axserve-console-{machine.lower()}.exe"
     executable = EXECUTABLE_DIR / name
     if not executable.exists():
@@ -36,15 +36,15 @@ def FindServerExecutableForMachine(machine: str) -> Path:
     return executable
 
 
-def FindServerExecutableForCLSID(clsid: str) -> Path:
-    machine = CheckMachineFromCLSID(clsid)
+def find_server_executable_for_clsid(clsid: str) -> Path:
+    machine = check_machine_for_clsid(clsid)
     if not machine:
         msg = f"Cannot determine machine type for clsid: {clsid}"
         raise ValueError(msg)
-    return FindServerExecutableForMachine(machine)
+    return find_server_executable_for_machine(machine)
 
 
-class AxServeServerProcess(KillOnDeletePopen):
+class AxServeServerProcess(ScopedProcess):
     def __init__(
         self,
         address: str,
@@ -54,6 +54,6 @@ class AxServeServerProcess(KillOnDeletePopen):
     ):
         if not machine:
             machine = platform.machine()
-        executable = FindServerExecutableForMachine(machine)
+        executable = find_server_executable_for_machine(machine)
         cmd = [executable, "--preset", "service", "--address-uri", address]
         super().__init__(cmd, **kwargs)

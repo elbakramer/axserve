@@ -20,8 +20,6 @@ import functools
 import inspect
 import typing
 
-from collections.abc import Callable
-from collections.abc import Sequence
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Concatenate
@@ -40,6 +38,9 @@ from axserve.proto.active_pb2_conversion import ValueToVariant
 
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+    from collections.abc import Sequence
+
     from axserve.client.stub import AxServeObject
 
 
@@ -597,19 +598,19 @@ class AxServeMemberType(
     def prop(self) -> AxServePropertyType[T]:
         if self._self_mem._property:
             return AxServePropertyType(self._self_mem._property, self._self_instance)
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @property
     def method(self) -> AxServeMethodType[P, R]:
         if self._self_mem._method:
             return self._self_mem._method.__get__(self._self_instance)
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @property
     def event(self) -> AxServeEventType[Q]:
         if self._self_mem._event:
             return self._self_mem._event.__get__(self._self_instance)
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def get(self) -> T:
         return self.prop.get()
@@ -655,7 +656,7 @@ class AxServeMember(Generic[T, P, R, Q]):
                 self._event = event
             else:
                 msg = f"Invalid item given: {item!r}"
-                raise ValueError(msg)
+                raise TypeError(msg)
 
         if prop is not None:
             self._property = prop
@@ -684,7 +685,7 @@ class AxServeMember(Generic[T, P, R, Q]):
                 self._event._set_info(info)
         else:
             msg = f"Invalid info type: {type(info)}"
-            raise ValueError(msg)
+            raise TypeError(msg)
 
     @classmethod
     def from_info(
@@ -703,7 +704,7 @@ class AxServeMember(Generic[T, P, R, Q]):
             instance._event._set_info(info)
         else:
             msg = f"Invalid info type: {type(info)}"
-            raise ValueError(msg)
+            raise TypeError(msg)
         return instance
 
     @overload
@@ -762,7 +763,7 @@ class AxServeMember(Generic[T, P, R, Q]):
             return self._property.__get__(instance, owner)
         if self._property or self._method or self._event:
             return AxServeMemberType(self, instance)
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def __set__(
         self,
@@ -771,11 +772,11 @@ class AxServeMember(Generic[T, P, R, Q]):
     ) -> active_pb2.SetPropertyResponse:
         if self._property:
             return self._property.__set__(instance, value)
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def __call__(self, instance: AxServeObject, *args, **kwargs) -> R | None:
         if self._method:
             return self._method(instance, *args, **kwargs)
         if self._event:
             return self._event(instance, *args, **kwargs)
-        raise NotImplementedError()
+        raise NotImplementedError

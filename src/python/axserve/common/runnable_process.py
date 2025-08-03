@@ -26,6 +26,7 @@ def run_process(
     process: Popen,
     input: AnyStr | None = None,  # noqa: A002
     timeout: float | None = None,
+    *,
     check: bool | None = None,
 ) -> CompletedProcess:
     if check is None:
@@ -52,11 +53,12 @@ def run_process(
         return completed
 
 
-class RunnablePopen(Popen):
+class RunnableProcess(Popen):
     def run(
         self,
         input: AnyStr | None = None,  # noqa: A002
         timeout: float | None = None,
+        *,
         check: bool | None = None,
     ):
-        return run_process(self, input, timeout, check)
+        return run_process(self, input, timeout, check=check)

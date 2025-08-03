@@ -34,16 +34,16 @@ def serve(
 ):
     import platform
 
-    from axserve.common.process import KillOnDeletePopen
-    from axserve.server.process import FindServerExecutableForMachine
+    from axserve.common.process import ScopedProcess
+    from axserve.server.process import find_server_executable_for_machine
 
     if not machine:
         machine = platform.machine()
 
-    executable = FindServerExecutableForMachine(machine)
+    executable = find_server_executable_for_machine(machine)
     cmd = [str(executable), *args]
 
-    process = KillOnDeletePopen(cmd)
+    process = ScopedProcess(cmd)
     process.run()
 
 

@@ -18,14 +18,10 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import typing
 
 from asyncio import Lock
 from asyncio import Task
 from collections import defaultdict
-from collections.abc import AsyncIterator
-from collections.abc import Callable
-from collections.abc import Mapping
 from typing import TYPE_CHECKING
 from typing import TypeVar
 from weakref import WeakValueDictionary
@@ -36,16 +32,19 @@ from axserve.aio.client.descriptor import AxServeEvent
 from axserve.aio.client.descriptor import AxServeMember
 from axserve.aio.client.descriptor import AxServeMethod
 from axserve.aio.client.descriptor import AxServeProperty
-from axserve.aio.common.async_acquireable import AsyncAcquireable
 from axserve.aio.common.async_initializable import AsyncInitializable
-from axserve.aio.common.async_iterable_queue import AsyncIterableQueue
 from axserve.proto import active_pb2
 from axserve.proto.active_pb2_conversion import ValueFromVariant
-from axserve.proto.active_pb2_grpc import ActiveStub
 
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterable
+    from collections.abc import Callable
+    from collections.abc import Mapping
+
     from axserve.aio.client.stub import AxServeObject
+    from axserve.aio.common.async_acquireable import AsyncAcquireable
+    from axserve.proto.active_pb2_grpc import ActiveAsyncStub
 
 
 T = TypeVar("T")
@@ -89,44 +88,24 @@ class AxServeEventHandlersManager:
 
 
 class AxServeEventStreamManager:
-    def __init__(self, stub: ActiveStub, *, use_response_queue: bool = False):
-        self._use_response_queue = use_response_queue
-        if self._use_response_queue:
-            self._handle_event_response_queue = AsyncIterableQueue()
-            self._handle_event_requests = stub.HandleEvent(
-                self._handle_event_response_queue
-            )
-        else:
-            self._handle_event_requests = stub.HandleEvent()
+    def __init__(self, stub: ActiveAsyncStub):
+        self._handle_event_requests = stub.HandleEvent()
 
     def _get_handle_event_requests(
         self,
-    ) -> AsyncIterator[active_pb2.HandleEventRequest]:
+    ) -> AsyncIterable[active_pb2.HandleEventRequest]:
         return self._handle_event_requests
 
     async def _put_handle_event_response(
         self, response: active_pb2.HandleEventResponse
     ) -> None:
-        if self._use_response_queue:
-            return await self._handle_event_response_queue.put(response)
-        else:
-            handle_events = typing.cast(
-                grpc.aio.StreamStreamCall, self._handle_event_requests
-            )
-            return await handle_events.write(response)
+        return await self._handle_event_requests.write(response)
 
     async def _close_event_stream(self) -> None:
-        if self._use_response_queue:
-            return await self._handle_event_response_queue.close()
-        else:
-            handle_events = typing.cast(
-                grpc.aio.StreamStreamCall, self._handle_event_requests
-            )
-            return await handle_events.done_writing()
+        return await self._handle_event_requests.done_writing()
 
     def _cancel_event_stream(self) -> bool:
-        handle_events = typing.cast(grpc.aio.RpcContext, self._handle_event_requests)
-        return handle_events.cancel()
+        return self._handle_event_requests.cancel()
 
 
 class AxServeInstancesManager:
@@ -154,7 +133,7 @@ class AxServeInstancesManager:
 
 class AxServeMembersManager(AsyncInitializable["AxServeMembersManager"]):
     _instance: str
-    _stub: ActiveStub
+    _stub: ActiveAsyncStub
     _context_manager: AxServeEventContextManager
 
     _members_dict: dict[str, AxServeMember]
@@ -168,7 +147,7 @@ class AxServeMembersManager(AsyncInitializable["AxServeMembersManager"]):
     def __init__(
         self,
         instance: str,
-        stub: ActiveStub,
+        stub: ActiveAsyncStub,
         context_manager: AxServeEventContextManager,
     ):
         self._instance = instance
@@ -188,7 +167,6 @@ class AxServeMembersManager(AsyncInitializable["AxServeMembersManager"]):
         request.instance = self._instance
         self._context_manager._contextualize_request(request)
         response = await self._stub.Describe(request)
-        response = typing.cast(active_pb2.DescribeResponse, response)
 
         for info in response.properties:
             prop = AxServeProperty(info)
@@ -241,12 +219,12 @@ class AxServeMembersManager(AsyncInitializable["AxServeMembersManager"]):
 class AxServeMembersManagerCache:
     def __init__(
         self,
-        stub: ActiveStub,
+        stub: ActiveAsyncStub,
         context_manager: AxServeEventContextManager,
     ):
         self._stub = stub
         self._context_manager = context_manager
-        self._members_managers = {}
+        self._members_managers: dict[str, AxServeMembersManager] = {}
 
     async def _get_members_manager(self, c: str, i: str) -> AxServeMembersManager:
         if c not in self._members_managers:

@@ -18,9 +18,13 @@ from __future__ import annotations
 
 from collections.abc import Awaitable
 from contextlib import AbstractAsyncContextManager
-from types import TracebackType
+from typing import TYPE_CHECKING
 from typing import Protocol
 from typing import TypeVar
+
+
+if TYPE_CHECKING:
+    from types import TracebackType
 
 
 T_co = TypeVar("T_co", covariant=True)

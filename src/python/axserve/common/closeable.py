@@ -25,11 +25,10 @@ from axserve.common.protocol import check_names_in_mro
 class Closeable(Protocol):
     @abstractmethod
     def close(self) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @classmethod
-    def __subclasshook__(cls, __subclass: type) -> bool:
-        if cls is Closeable:
-            if check_names_in_mro(["close"], __subclass):
-                return True
+    def __subclasshook__(cls, __subclass: type, /) -> bool:
+        if cls is Closeable and check_names_in_mro(["close"], __subclass):
+            return True
         return super().__subclasshook__(__subclass)

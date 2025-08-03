@@ -19,10 +19,10 @@ from __future__ import annotations
 import platform
 
 
-PlatformSystem = platform.system()
+PLATFORM_SYSTEM = platform.system()
 
 
-if PlatformSystem == "Windows":
-    from .pywin32 import *
+if PLATFORM_SYSTEM == "Windows":
+    from .windows import *
 else:
-    from .common import *
+    from .linux import *

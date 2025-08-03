@@ -16,7 +16,7 @@
 
 from __future__ import annotations
 
-from axserve.client.stubgen import *  # type: ignore # noqa: F403
+from axserve.client.stubgen import *  # type: ignore
 from axserve.client.stubgen import StubGenerator as SyncStubGenerator
 
 

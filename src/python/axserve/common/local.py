@@ -6,14 +6,18 @@ import typing
 from abc import ABC
 from abc import abstractmethod
 from asyncio import AbstractEventLoop
-from collections.abc import Iterable
-from collections.abc import Mapping
-from collections.abc import MutableMapping
 from contextlib import contextmanager
 from threading import RLock
 from threading import local
+from typing import TYPE_CHECKING
 from typing import Any
 from weakref import WeakKeyDictionary
+
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from collections.abc import Mapping
+    from collections.abc import MutableMapping
 
 
 class Local(ABC):
@@ -23,11 +27,11 @@ class Local(ABC):
 
     @abstractmethod
     def __setattr__(self, name, value):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @abstractmethod
     def __delattr__(self, name):
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
 class ThreadLocal(local, Local): ...

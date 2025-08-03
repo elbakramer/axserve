@@ -27,13 +27,14 @@ from axserve.common.protocol import check_name_in_mro
 class AsyncCloseable(Protocol):
     @abstractmethod
     async def close(self) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @classmethod
-    def __subclasshook__(cls, __subclass: type) -> bool:
-        if cls is AsyncCloseable:
-            if check_name_in_mro("close", __subclass) and inspect.iscoroutinefunction(
-                __subclass.close
-            ):
-                return True
+    def __subclasshook__(cls, __subclass: type, /) -> bool:
+        if (
+            cls is AsyncCloseable
+            and check_name_in_mro("close", __subclass)
+            and inspect.iscoroutinefunction(__subclass.close)
+        ):
+            return True
         return super().__subclasshook__(__subclass)

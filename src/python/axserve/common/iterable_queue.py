@@ -28,7 +28,7 @@ T = TypeVar("T")
 
 
 class IterableQueue(CloseableQueue[T], Iterable[T]):
-    def next(self, timeout: float | None = None) -> T:  # noqa: A003
+    def next(self, timeout: float | None = None) -> T:
         try:
             return self.get(timeout=timeout)
         except Closed as exc:

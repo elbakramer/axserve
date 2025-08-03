@@ -23,7 +23,10 @@ from typing import Any
 from axserve.proto import active_pb2
 
 
-def NoneFromVariant(variant: active_pb2.Variant) -> None:
+# ruff:noqa: N802
+
+
+def NoneFromVariant(variant: active_pb2.Variant) -> None:  # noqa: ARG001
     return None
 
 
@@ -52,7 +55,10 @@ def ListFromVariant(variant: active_pb2.Variant) -> list:
 
 
 def MapFromVariant(variant: active_pb2.Variant) -> dict:
-    return {name: ValueFromVariant(value) for name, value in variant.map_value.values.items()}
+    return {
+        name: ValueFromVariant(value)
+        for name, value in variant.map_value.values.items()
+    }
 
 
 ValueFromVariant_Methods = {

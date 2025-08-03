@@ -19,12 +19,8 @@ from __future__ import annotations
 import asyncio
 import functools
 import inspect
-import typing
 
 from asyncio import Task
-from collections.abc import Awaitable
-from collections.abc import Callable
-from collections.abc import Sequence
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Concatenate
@@ -43,6 +39,10 @@ from axserve.proto.active_pb2_conversion import ValueToVariant
 
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable
+    from collections.abc import Callable
+    from collections.abc import Sequence
+
     from axserve.aio.client.stub import AxServeObject
 
 T = TypeVar("T")
@@ -95,7 +95,7 @@ class AxServeProperty(Generic[T]):
         elif isinstance(arg, active_pb2.PropertyInfo):
             self._set_info(arg)
         elif callable(arg):
-            functools.update_wrapper(self, arg)  # type: ignore
+            functools.update_wrapper(self, arg)
             self._name = arg.__name__
         elif arg is not None:
             msg = f"Invalid argument: {arg!r}"
@@ -166,7 +166,6 @@ class AxServeProperty(Generic[T]):
         request.index = index
         client._event_context_manager._contextualize_request(request)
         response = await client._stub.GetProperty(request)
-        response = typing.cast(active_pb2.GetPropertyResponse, response)
         return ValueFromVariant(response.value)
 
     async def _get(
@@ -206,8 +205,10 @@ class AxServeProperty(Generic[T]):
         ValueToVariant(value, request.value)
         client._event_context_manager._contextualize_request(request)
         response = await client._stub.SetProperty(request)
-        response = typing.cast(active_pb2.SetPropertyResponse, response)
         return response
+
+    def __call__(self, instance: AxServeObject) -> Awaitable[T]:
+        return self._get_value(instance)
 
     @overload
     def __get__(self, instance: Any, owner: type | None = None) -> Awaitable[T]: ...
@@ -361,7 +362,6 @@ class AxServeMethod(Generic[P, R]):
             ValueToVariant(arg, request.arguments.add())
         client._event_context_manager._contextualize_request(request)
         response = await client._stub.InvokeMethod(request)
-        response = typing.cast(active_pb2.InvokeMethodResponse, response)
         return ValueFromVariant(response.return_value)
 
     def __call__(
@@ -432,7 +432,6 @@ class AxServeEventType(
                 request.index = index
                 client._event_context_manager._contextualize_request(request)
                 response = await client._stub.ConnectEvent(request)
-                response = typing.cast(active_pb2.ConnectEventResponse, response)
                 if not response.successful:
                     msg = "Failed to connect event"
                     raise RuntimeError(msg)
@@ -465,7 +464,6 @@ class AxServeEventType(
                 request.index = index
                 client._event_context_manager._contextualize_request(request)
                 response = await client._stub.DisconnectEvent(request)
-                response = typing.cast(active_pb2.DisconnectEventResponse, response)
                 if not response.successful:
                     msg = "Failed to disconnect event"
                     raise RuntimeError(msg)
@@ -621,19 +619,19 @@ class AxServeMemberType(
     def prop(self) -> AxServePropertyType[T]:
         if self._self_mem._property:
             return AxServePropertyType(self._self_mem._property, self._self_instance)
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @property
     def method(self) -> AxServeMethodType[P, R]:
         if self._self_mem._method:
             return self._self_mem._method.__get__(self._self_instance)
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @property
     def event(self) -> AxServeEventType[Q]:
         if self._self_mem._event:
             return self._self_mem._event.__get__(self._self_instance)
-        raise NotImplementedError()
+        raise NotImplementedError
 
     async def get(self) -> T:
         return await self.prop.get()
@@ -679,7 +677,7 @@ class AxServeMember(Generic[T, P, R, Q]):
                 self._event = event
             else:
                 msg = f"Invalid item given: {item!r}"
-                raise ValueError(msg)
+                raise TypeError(msg)
 
         if prop is not None:
             self._property = prop
@@ -706,7 +704,7 @@ class AxServeMember(Generic[T, P, R, Q]):
                 self._event._set_info(info)
         else:
             msg = f"Invalid info type: {type(info)}"
-            raise ValueError(msg)
+            raise TypeError(msg)
 
     @classmethod
     def from_info(
@@ -725,7 +723,7 @@ class AxServeMember(Generic[T, P, R, Q]):
             instance._event._set_info(info)
         else:
             msg = f"Invalid info type: {type(info)}"
-            raise ValueError(msg)
+            raise TypeError(msg)
         return instance
 
     @overload
@@ -784,7 +782,7 @@ class AxServeMember(Generic[T, P, R, Q]):
             return self._property.__get__(instance, owner)
         if self._property or self._method or self._event:
             return AxServeMemberType(self, instance)
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def __set__(
         self,
@@ -793,7 +791,7 @@ class AxServeMember(Generic[T, P, R, Q]):
     ) -> Task[active_pb2.SetPropertyResponse]:
         if self._property:
             return self._property.__set__(instance, value)
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def __call__(
         self, instance: AxServeObject, *args, **kwargs
@@ -802,4 +800,4 @@ class AxServeMember(Generic[T, P, R, Q]):
             return self._method(instance, *args, **kwargs)
         if self._event:
             return self._event(instance, *args, **kwargs)
-        raise NotImplementedError()
+        raise NotImplementedError

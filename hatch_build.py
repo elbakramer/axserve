@@ -22,6 +22,7 @@ import sys
 
 from pathlib import Path
 from typing import Any
+from typing import override
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 from packaging.requirements import Requirement
@@ -31,8 +32,9 @@ class CMakeBuildHook(BuildHookInterface):
     PLUGIN_NAME = "cmake"
 
     def check_command(self, cmd):
-        return subprocess.check_call(cmd, shell=False)
+        return subprocess.check_call(cmd, shell=False)  # noqa: S603
 
+    @override
     def clean(self, versions: list[str]) -> None:
         builds = self.config.get("builds", [])
         for build in builds:
@@ -45,6 +47,7 @@ class CMakeBuildHook(BuildHookInterface):
                 if filename.suffix == ".exe":
                     filename.unlink()
 
+    @override
     def initialize(self, version: str, build_data: dict[str, Any]) -> None:
         builds = self.config.get("builds", [])
         for build in builds:
@@ -133,7 +136,13 @@ class CMakeBuildHook(BuildHookInterface):
                     cmake_build_cmd += [f"-j{build_parallel}"]
             self.check_command(cmake_build_cmd)
 
-    def finalize(self, version: str, build_data: dict[str, Any], artifact_path: str) -> None:
+    @override
+    def finalize(
+        self,
+        version: str,
+        build_data: dict[str, Any],
+        artifact_path: str,
+    ) -> None:
         pass
 
 
@@ -141,7 +150,7 @@ class ProtocBuildHook(BuildHookInterface):
     PLUGIN_NAME = "protoc"
 
     def check_command(self, cmd):
-        return subprocess.check_call(cmd, shell=False)
+        return subprocess.check_call(cmd, shell=False)  # noqa: S603
 
     def _fix_import_in_grpc_py(self, filename):
         with open(filename, "r+", encoding="utf-8") as f:
@@ -155,26 +164,37 @@ class ProtocBuildHook(BuildHookInterface):
             f.seek(0)
             f.write(data)
 
+    @override
     def clean(self, versions: list[str]) -> None:
         pass
 
+    @override
     def initialize(self, version: str, build_data: dict[str, Any]) -> None:
         protoc_cmds = [
             sys.executable,
             "-m",
             "grpc_tools.protoc",
         ]
+        protoc_executable = "./build/amd64/protobuf-release/bin/protoc.exe"
+        protoc_gen_grpc_python = "./build/amd64/grpc-release/bin/grpc_python_plugin.exe"
+        protoc_gen_mypy = "protoc-gen-mypy"
+
         protoc_cmds = [
-            "./build/amd64/protobuf-release/bin/protoc.exe",
-            "--plugin=protoc-gen-grpc_python=./build/amd64/grpc-release/bin/grpc_python_plugin.exe",
+            protoc_executable,
+            f"--plugin=protoc-gen-grpc_python={protoc_gen_grpc_python}",
+            f"--plugin=protoc-gen-mypy={protoc_gen_mypy}",
         ]
         generates = self.config.get("generates", [])
         for generate in generates:
             sources = generate.get("sources", [])
             include_dirs = generate.get("include-dirs", [])
-            outs = generate.get("outs", ["python", "pyi", "grpc_python"])
+            outs = generate.get("outs", ["python", "grpc_python", "mypy", "mypy_grpc"])
             out_dir = generate.get("out-dir", ".")
-            protoc_args = [f"-I{i}" for i in include_dirs] + [f"--{out}_out={out_dir}" for out in outs] + sources
+            protoc_args = (
+                [f"-I{i}" for i in include_dirs]
+                + [f"--{out}_out={out_dir}" for out in outs]
+                + sources
+            )
             self.check_command(protoc_cmds + protoc_args)
             for source in sources:
                 source_path = Path(source)
@@ -183,7 +203,13 @@ class ProtocBuildHook(BuildHookInterface):
                 if grpc_py_filename.exists():
                     self._fix_import_in_grpc_py(grpc_py_filename)
 
-    def finalize(self, version: str, build_data: dict[str, Any], artifact_path: str) -> None:
+    @override
+    def finalize(
+        self,
+        version: str,
+        build_data: dict[str, Any],
+        artifact_path: str,
+    ) -> None:
         pass
 
 
@@ -202,15 +228,23 @@ class CustomBuildHook(BuildHookInterface):
             ProtocBuildHook(*args, **kwargs),
         ]
 
+    @override
     def clean(self, versions: list[str]) -> None:
         for hook in self._hooks:
             hook.clean(versions)
 
+    @override
     def initialize(self, version: str, build_data: dict[str, Any]) -> None:
         for hook in self._hooks:
             hook.initialize(version, build_data)
 
-    def finalize(self, version: str, build_data: dict[str, Any], artifact_path: str) -> None:
+    @override
+    def finalize(
+        self,
+        version: str,
+        build_data: dict[str, Any],
+        artifact_path: str,
+    ) -> None:
         for hook in self._hooks:
             hook.finalize(version, build_data, artifact_path)
 

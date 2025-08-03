@@ -21,6 +21,7 @@ from asyncio import QueueEmpty
 from asyncio import QueueFull
 from typing import Any
 from typing import TypeVar
+from typing import override
 
 from axserve.aio.common.async_closeable import AsyncCloseable
 from axserve.common.closeable_queue import Closed as QueueClosed
@@ -37,6 +38,7 @@ class AsyncCloseableQueue(Queue[T], AsyncCloseable):
             raise RuntimeError(msg)
         self._closed = False
 
+    @override
     async def put(self, item):
         """Put an item into the queue.
 
@@ -44,15 +46,15 @@ class AsyncCloseableQueue(Queue[T], AsyncCloseable):
         slot is available before adding item.
         """
         while self.full():
-            putter = self._get_loop().create_future()
-            self._putters.append(putter)
+            putter = self._get_loop().create_future()  # type: ignore
+            self._putters.append(putter)  # type: ignore
             try:
                 await putter
             except:
                 putter.cancel()  # Just in case putter is not done yet.
-                try:
+                try:  # noqa: SIM105
                     # Clean self._putters from canceled putters.
-                    self._putters.remove(putter)
+                    self._putters.remove(putter)  # type: ignore
                 except ValueError:
                     # The putter could be removed from self._putters by a
                     # previous get_nowait call.
@@ -60,10 +62,11 @@ class AsyncCloseableQueue(Queue[T], AsyncCloseable):
                 if not self.full() and not putter.cancelled():
                     # We were woken up by get_nowait(), but can't take
                     # the call.  Wake up the next in line.
-                    self._wakeup_next(self._putters)
+                    self._wakeup_next(self._putters)  # type: ignore
                 raise
         return self.put_nowait(item)
 
+    @override
     def put_nowait(self, item):
         """Put an item into the queue without blocking.
 
@@ -75,24 +78,25 @@ class AsyncCloseableQueue(Queue[T], AsyncCloseable):
             raise QueueFull
         self._put(item)
         self._unfinished_tasks += 1
-        self._finished.clear()
-        self._wakeup_next(self._getters)
+        self._finished.clear()  # type: ignore
+        self._wakeup_next(self._getters)  # type: ignore
 
+    @override
     async def get(self):
         """Remove and return an item from the queue.
 
         If queue is empty, wait until an item is available.
         """
         while not self._closed and self.empty():
-            getter = self._get_loop().create_future()
-            self._getters.append(getter)
+            getter = self._get_loop().create_future()  # type: ignore
+            self._getters.append(getter)  # type: ignore
             try:
                 await getter
             except:
                 getter.cancel()  # Just in case getter is not done yet.
-                try:
+                try:  # noqa: SIM105
                     # Clean self._getters from canceled getters.
-                    self._getters.remove(getter)
+                    self._getters.remove(getter)  # type: ignore
                 except ValueError:
                     # The getter could be removed from self._getters by a
                     # previous put_nowait call.
@@ -100,10 +104,11 @@ class AsyncCloseableQueue(Queue[T], AsyncCloseable):
                 if not self.empty() and not getter.cancelled():
                     # We were woken up by put_nowait(), but can't take
                     # the call.  Wake up the next in line.
-                    self._wakeup_next(self._getters)
+                    self._wakeup_next(self._getters)  # type: ignore
                 raise
         return self.get_nowait()
 
+    @override
     def get_nowait(self):
         """Remove and return an item from the queue.
 
@@ -114,7 +119,7 @@ class AsyncCloseableQueue(Queue[T], AsyncCloseable):
         if self.empty():
             raise QueueEmpty
         item = self._get()
-        self._wakeup_next(self._putters)
+        self._wakeup_next(self._putters)  # type: ignore
         return item
 
     async def close(self):
@@ -124,15 +129,15 @@ class AsyncCloseableQueue(Queue[T], AsyncCloseable):
         slot is available before closing.
         """
         while self.full():
-            putter = self._get_loop().create_future()
-            self._putters.append(putter)
+            putter = self._get_loop().create_future()  # type: ignore
+            self._putters.append(putter)  # type: ignore
             try:
                 await putter
             except:
                 putter.cancel()  # Just in case putter is not done yet.
-                try:
+                try:  # noqa: SIM105
                     # Clean self._putters from canceled putters.
-                    self._putters.remove(putter)
+                    self._putters.remove(putter)  # type: ignore
                 except ValueError:
                     # The putter could be removed from self._putters by a
                     # previous get_nowait call.
@@ -140,14 +145,14 @@ class AsyncCloseableQueue(Queue[T], AsyncCloseable):
                 if not self.full() and not putter.cancelled():
                     # We were woken up by get_nowait(), but can't take
                     # the call.  Wake up the next in line.
-                    self._wakeup_next(self._putters)
+                    self._wakeup_next(self._putters)  # type: ignore
                 raise
         return self.close_nowait()
 
     def close_nowait(self):
         """Close the queue without blocking."""
         self._closed = True
-        self._wakeup_next(self._getters)
+        self._wakeup_next(self._getters)  # type: ignore
 
     def closed(self) -> bool:
         """Return True if the queue is closed, False otherwise."""

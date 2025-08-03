@@ -16,8 +16,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 from typing import Concatenate
 from typing import ParamSpec
 from typing import TypeVar
@@ -25,6 +24,11 @@ from typing import TypeVar
 from axserve.aio.client.descriptor import AxServeEvent
 from axserve.aio.client.descriptor import AxServeMethod
 from axserve.aio.client.descriptor import AxServeProperty
+
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable
+    from collections.abc import Callable
 
 
 T = TypeVar("T")

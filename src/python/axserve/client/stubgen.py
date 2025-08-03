@@ -21,7 +21,7 @@ import datetime
 import itertools
 import sys
 
-from collections.abc import Sequence
+from typing import TYPE_CHECKING
 from typing import ClassVar
 
 import pythoncom
@@ -36,9 +36,7 @@ from win32api import ExpandEnvironmentStrings
 from win32api import RegOpenKey
 from win32api import RegQueryValue
 from win32api import RegQueryValueEx
-from win32com.client.build import (
-    MakePublicAttributeName as _MakePublicAttributeName,  # type: ignore
-)
+from win32com.client.build import MakePublicAttributeName as _MakePublicAttributeName
 from win32com.client.genpy import Generator
 from win32com.client.genpy import MakeEventMethodName as _MakeEventMethodName
 from win32com.client.selecttlb import EnumKeys
@@ -47,9 +45,15 @@ from win32con import HKEY_CLASSES_ROOT
 from win32con import REG_EXPAND_SZ
 
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+
+# ruff: noqa: N802
+
+
 def GetTypelibSpecsForTypelibCLSID(clsid: str) -> list[TypelibSpec] | None:
-    clsid = IID(clsid)
-    clsid = str(clsid)
+    clsid = str(IID(clsid))
 
     key_typelibs = RegOpenKey(HKEY_CLASSES_ROOT, "TypeLib")
 
@@ -105,7 +109,9 @@ def GetTypelibSpecsForTypelibCLSID(clsid: str) -> list[TypelibSpec] | None:
     return specs
 
 
-def GetLatestTypelibSpecFromSpecs(specs: Sequence[TypelibSpec]) -> TypelibSpec | None:
+def GetLatestTypelibSpecFromSpecs(
+    specs: Sequence[TypelibSpec] | None = None,
+) -> TypelibSpec | None:
     if not specs:
         return None
     specs_grouped_by_version = itertools.groupby(
@@ -136,8 +142,7 @@ def GetTypelibSpecForCLSID(clsid: str) -> TypelibSpec | None:
     if spec is not None:
         return spec
 
-    clsid = IID(clsid)
-    clsid = str(clsid)
+    clsid = str(IID(clsid))
 
     key_wow6432node = RegOpenKey(HKEY_CLASSES_ROOT, "WOW6432Node")
     key_clsids = RegOpenKey(key_wow6432node, "CLSID")
@@ -262,7 +267,7 @@ class StubGenerator:
                         ast.Constant(0),
                         ast.Constant(0),
                         ast.Constant(0),
-                        ast.Constant(arg_default.msec),
+                        ast.Constant(arg_default.msec),  # type: ignore
                     ],
                     [],
                 )
@@ -318,12 +323,14 @@ class StubGenerator:
         for i in range(num_args):
             try:
                 arg_name = names[i + 1]
-                named_arg = arg_name is not None
+                if arg_name:
+                    named_arg = True
+                else:
+                    arg_name = f"arg{i}"
+                    named_arg = False
             except IndexError:
-                named_arg = False
-
-            if not named_arg:
                 arg_name = f"arg{i}"
+                named_arg = False
 
             arg_name = self.MakePublicAttributeName(arg_name)
             arg_desc = fdesc[2][i]
@@ -342,7 +349,7 @@ class StubGenerator:
                 ):
                     arg_default = def_out_arg
                 elif named_arg:
-                    if arg >= first_opt_arg:
+                    if i >= first_opt_arg:
                         arg_default = def_named_opt_arg
                     else:
                         arg_default = def_named_not_opt_arg
@@ -356,11 +363,7 @@ class StubGenerator:
                 elif arg_default is missing:
                     self._used_missing = True
 
-        if num_opt_args == -1:
-            vararg = ast.arg(names[-1], None)
-        else:
-            vararg = None
-
+        vararg = ast.arg(names[-1], None) if num_opt_args == -1 else None
         args = ast.arguments([], args, vararg, [], [], None, defaults)
 
         return args
@@ -383,12 +386,17 @@ class StubGenerator:
                 make_method_name = self.MakeEventMethodName
             else:
                 make_method_name = self.MakePublicAttributeName
+            if not name:
+                msg = "method name is not available"
+                raise ValueError(msg)
             name = make_method_name(name)
 
-        if is_setter or is_setter_only:
-            assert len(entry.desc.args) == 1
-        elif is_getter:
-            assert len(entry.desc.args) == 0
+        if (is_setter or is_setter_only) and len(entry.desc.args) != 1:
+            msg = "invalid number of args for setter"
+            raise ValueError(msg)
+        if is_getter and len(entry.desc.args) != 0:
+            msg = "invalid number of args for getter"
+            raise ValueError(msg)
 
         if is_getter:
             args = [ast.arg("self", None)]
@@ -404,7 +412,8 @@ class StubGenerator:
         else:
             args = self.MakeArguments(entry.desc, entry.names)
 
-        func_body = []
+        func_body: list[ast.stmt] = []
+        decorator_list: list[ast.expr] = []
 
         if not is_setter and entry.doc and entry.doc[1]:
             func_body.append(ast.Expr(ast.Constant(entry.doc[1])))
@@ -495,10 +504,24 @@ class StubGenerator:
 
         if is_async:
             func_def = ast.AsyncFunctionDef(
-                name, args, func_body, decorator_list, returns
+                name=name,
+                args=args,
+                body=func_body,
+                decorator_list=decorator_list,
+                returns=returns,
+                type_comment=None,
+                type_params=[],
             )
         else:
-            func_def = ast.FunctionDef(name, args, func_body, decorator_list, returns)
+            func_def = ast.FunctionDef(
+                name=name,
+                args=args,
+                body=func_body,
+                decorator_list=decorator_list,
+                returns=returns,
+                type_comment=None,
+                type_params=[],
+            )
 
         return func_def
 
@@ -514,10 +537,13 @@ class StubGenerator:
 
         if not class_name:
             class_name = ole_item.python_name
+        if not class_name:
+            msg = "invalid class name"
+            raise ValueError(msg)
 
         is_sink = ole_item.bIsSink
 
-        class_body = []
+        class_body: list[ast.stmt] = []
         class_body_assigns = []
 
         clsid = ole_item.clsid
@@ -542,7 +568,9 @@ class StubGenerator:
 
         if hasattr(ole_item, "mapFuncs"):
             for name, entry in ole_item.mapFuncs.items():
-                assert entry.desc.desckind == pythoncom.DESCKIND_FUNCDESC
+                if entry.desc.desckind != pythoncom.DESCKIND_FUNCDESC:
+                    msg = "invalid desckind"
+                    raise ValueError(msg)
 
                 if (
                     entry.desc.wFuncFlags & pythoncom.FUNCFLAG_FRESTRICTED
@@ -672,23 +700,22 @@ class StubGenerator:
                         entry, "__aiter__" if is_async else "__iter__"
                     )
                     class_body.append(func_def)
-                else:
-                    if is_sink:
-                        func_def = self.MakeMethodFunctionDef(
-                            entry,
-                            is_sink=is_sink,
-                            is_async=is_async,
-                            is_base=is_base,
-                        )
-                        class_body.append(func_def)
-                    elif name not in prop_names:
-                        func_def = self.MakeMethodFunctionDef(
-                            entry,
-                            is_getter=True,
-                            is_async=is_async,
-                            is_base=is_base,
-                        )
-                        class_body.append(func_def)
+                elif is_sink:
+                    func_def = self.MakeMethodFunctionDef(
+                        entry,
+                        is_sink=is_sink,
+                        is_async=is_async,
+                        is_base=is_base,
+                    )
+                    class_body.append(func_def)
+                elif name not in prop_names:
+                    func_def = self.MakeMethodFunctionDef(
+                        entry,
+                        is_getter=True,
+                        is_async=is_async,
+                        is_base=is_base,
+                    )
+                    class_body.append(func_def)
 
                 prop_names.add(name)
 
@@ -745,7 +772,14 @@ class StubGenerator:
         ):
             class_bases.append(ast.Name("AxServeObject", ast.Load()))
 
-        class_def = ast.ClassDef(class_name, class_bases, [], class_body, [])
+        class_def = ast.ClassDef(
+            name=class_name,
+            bases=class_bases,
+            keywords=[],
+            body=class_body,
+            decorator_list=[],
+            type_params=[],
+        )
         class_defs.append(class_def)
 
         return class_defs
@@ -781,22 +815,22 @@ class StubGenerator:
         )
         class_defs = []
 
-        clsid = IID(clsid)
+        clsid = str(IID(clsid))
         ole_items = BuildOleItemsForCLSID(clsid)[0]
 
         if clsid in ole_items:
             ole_items_selected = {}
             item = ole_items[clsid]
             if hasattr(item, "interfaces"):
-                for interface, flag in item.interfaces:
+                for interface, _ in item.interfaces:  # type: ignore
                     ole_items_selected[interface.clsid] = ole_items[interface.clsid]
             if hasattr(item, "sources"):
-                for source, flag in item.sources:
+                for source, _ in item.sources:  # type: ignore
                     ole_items_selected[source.clsid] = ole_items[source.clsid]
             ole_items_selected[clsid] = item
             ole_items = ole_items_selected
 
-        for _, ole_item in ole_items.items():
+        for ole_item in ole_items.values():
             item_class_defs = self.MakeOleItemClassDefs(
                 ole_item,
                 is_async=self._is_async,

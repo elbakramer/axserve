@@ -20,7 +20,7 @@ import asyncio
 
 
 async def test_dynamic_iexplorer_async():
-    from axserve.aio.client.stub import AxServeObject  # noqa: PLC0415
+    from axserve.aio.client.stub import AxServeObject
 
     on_visible_fired = asyncio.Event()
 
@@ -29,7 +29,9 @@ async def test_dynamic_iexplorer_async():
 
     async with AxServeObject("InternetExplorer.Application") as iexplorer:
         await iexplorer.OnVisible.connect(on_visible)  # type: ignore
-        await iexplorer.__setattr__("Visible", 1)  # type: ignore # normal assignment syntax won't return awaitable
+        # normal assignment syntax won't return awaitable
+        # so using __setattr__() to get an awaitable
+        await iexplorer.__setattr__("Visible", 1)  # type: ignore
         async with asyncio.timeout(10):
             fired = await on_visible_fired.wait()
         assert fired
@@ -38,10 +40,10 @@ async def test_dynamic_iexplorer_async():
 
 
 async def test_declarative_iexplorer_async():
-    from axserve.aio.client.descriptor import AxServeEvent  # noqa: PLC0415
-    from axserve.aio.client.descriptor import AxServeMethod  # noqa: PLC0415
-    from axserve.aio.client.descriptor import AxServeProperty  # noqa: PLC0415
-    from axserve.aio.client.stub import AxServeObject  # noqa: PLC0415
+    from axserve.aio.client.descriptor import AxServeEvent
+    from axserve.aio.client.descriptor import AxServeMethod
+    from axserve.aio.client.descriptor import AxServeProperty
+    from axserve.aio.client.stub import AxServeObject
 
     class IExplorer(AxServeObject):
         __CLSID__ = "InternetExplorer.Application"
@@ -57,7 +59,9 @@ async def test_declarative_iexplorer_async():
 
     async with IExplorer() as iexplorer:
         await iexplorer.OnVisible.connect(on_visible)
-        await iexplorer.__setattr__("Visible", 1)  # type: ignore # normal assignment syntax won't return awaitable
+        # normal assignment syntax won't return awaitable
+        # so using __setattr__() to get an awaitable
+        await iexplorer.__setattr__("Visible", 1)  # type: ignore
         async with asyncio.timeout(10):
             fired = await on_visible_fired.wait()
         assert fired

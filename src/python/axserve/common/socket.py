@@ -22,7 +22,7 @@ import socket
 from contextlib import closing
 
 
-def FindFreePort() -> int:
+def find_free_port() -> int:
     with closing(
         socket.socket(
             socket.AF_INET,
@@ -39,7 +39,7 @@ def FindFreePort() -> int:
         return port
 
 
-def IsPrivateAddress(host) -> bool:
+def is_private_address(host) -> bool:
     host = socket.gethostbyname(host)
     ip_address = ipaddress.ip_address(host)
     private_networks_str = [
@@ -48,8 +48,7 @@ def IsPrivateAddress(host) -> bool:
         "172.16.0.0/12",
         "192.168.0.0/16",
     ]
-    private_networks = [ipaddress.ip_network(network) for network in private_networks_str]
-    for private_network in private_networks:
-        if ip_address in private_network:
-            return True
-    return False
+    private_networks = [
+        ipaddress.ip_network(network) for network in private_networks_str
+    ]
+    return any(ip_address in private_network for private_network in private_networks)

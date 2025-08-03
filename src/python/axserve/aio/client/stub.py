@@ -18,16 +18,12 @@ from __future__ import annotations
 
 import asyncio
 import platform
-import typing
 
 from asyncio import Lock
-from collections.abc import Iterable
-from collections.abc import MutableMapping
+from typing import TYPE_CHECKING
 from typing import ClassVar
 
 import grpc
-
-from grpc.aio import Channel
 
 from axserve.aio.client.component import AxServeEventContextManager
 from axserve.aio.client.component import AxServeEventHandlersManager
@@ -40,10 +36,18 @@ from axserve.aio.client.descriptor import AxServeMemberType
 from axserve.aio.common.async_initializable import AsyncInitializable
 from axserve.aio.server.process import AxServeServerProcess
 from axserve.common.local import LoopLocal
-from axserve.common.registry import CheckMachineFromCLSID
-from axserve.common.socket import FindFreePort
+from axserve.common.registry import check_machine_for_clsid
+from axserve.common.socket import find_free_port
 from axserve.proto import active_pb2
+from axserve.proto.active_pb2_grpc import ActiveAsyncStub
 from axserve.proto.active_pb2_grpc import ActiveStub
+
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from collections.abc import MutableMapping
+
+    from grpc.aio import Channel
 
 
 class AxServeObjectInternals:
@@ -112,7 +116,7 @@ class AxServeClientStore(LoopLocal):
         if machine not in self._clients:
             async with self._clients_lock:
                 if machine not in self._clients:
-                    port = FindFreePort()
+                    port = find_free_port()
                     address = f"localhost:{port}"
                     process = await AxServeServerProcess(address, machine=machine)
                     channel = grpc.aio.insecure_channel(address)
@@ -130,7 +134,7 @@ class AxServeClient(AsyncInitializable["AxServeClient"]):
     _channel: Channel
     _timeout: float
 
-    _stub: ActiveStub
+    _stub: ActiveAsyncStub
 
     _instances_manager: AxServeInstancesManager
     _event_context_manager: AxServeEventContextManager
@@ -156,7 +160,7 @@ class AxServeClient(AsyncInitializable["AxServeClient"]):
         self._channel = channel
         self._timeout = timeout
 
-        self._stub = ActiveStub(self._channel)
+        self._stub = ActiveStub(self._channel)  # type:ignore
 
         self._instances_manager = AxServeInstancesManager()
         self._event_context_manager = AxServeEventContextManager()
@@ -185,7 +189,6 @@ class AxServeClient(AsyncInitializable["AxServeClient"]):
         request = active_pb2.CreateRequest()
         request.clsid = c
         response = await self._stub.Create(request)
-        response = typing.cast(active_pb2.CreateResponse, response)
         instance = response.instance
         return instance
 
@@ -193,7 +196,6 @@ class AxServeClient(AsyncInitializable["AxServeClient"]):
         request = active_pb2.DestroyRequest()
         request.instance = i
         response = await self._stub.Destroy(request)
-        response = typing.cast(active_pb2.DestroyResponse, response)
         return response.successful
 
     async def _create_internals(
@@ -215,8 +217,10 @@ class AxServeClient(AsyncInitializable["AxServeClient"]):
         i = o.__axserve__
         i = await self._create_internals(c, i)
         o.__dict__["__axserve__"] = i  # skip __setattr__
-        instance = typing.cast(str, i._instance)
-        self._instances_manager._register_instance(instance, o)
+        if not i._instance:
+            msg = "Instance id is empty"
+            raise ValueError(msg)
+        self._instances_manager._register_instance(i._instance, o)
 
     async def create(self, c: str) -> AxServeObject:
         instance = AxServeObject(c, client=self)
@@ -275,7 +279,7 @@ class AxServeObject(AsyncInitializable["AxServeObject"]):
             msg = "Cannot determine CLSID"
             raise ValueError(msg)
         if not client:
-            machine = CheckMachineFromCLSID(clsid)
+            machine = check_machine_for_clsid(clsid)
             client = await AxServeClient.instance(machine)
         self.__axserve__._clsid = clsid
         self.__axserve__._client = client

@@ -20,13 +20,17 @@ import asyncio
 import platform
 
 from asyncio.subprocess import Process
-from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 
 from axserve.aio.common.async_initializable import AsyncInitializable
-from axserve.common.process import AssignProcessToJobObject
-from axserve.common.process import CreateJobObjectForCleanUp
-from axserve.server.process import FindServerExecutableForMachine
+from axserve.common.process import assign_process_to_job_object
+from axserve.common.process import create_job_object_for_cleanup
+from axserve.server.process import find_server_executable_for_machine
+
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class AxServeServerProcess(Process, AsyncInitializable["AxServeServerProcess"]):
@@ -53,7 +57,7 @@ class AxServeServerProcess(Process, AsyncInitializable["AxServeServerProcess"]):
         self._address = address
         self._machine = machine
 
-        self._program = FindServerExecutableForMachine(self._machine)
+        self._program = find_server_executable_for_machine(self._machine)
         self._args = ["--preset", "service", "--address-uri", address]
         self._kwargs = kwargs
 
@@ -69,8 +73,8 @@ class AxServeServerProcess(Process, AsyncInitializable["AxServeServerProcess"]):
             self._underlying_proc._protocol,  # type: ignore
             self._underlying_proc._loop,  # type: ignore
         )
-        self._job_handle = CreateJobObjectForCleanUp()
-        AssignProcessToJobObject(self._job_handle, self.pid)
+        self._job_handle = create_job_object_for_cleanup()
+        assign_process_to_job_object(self._job_handle, self.pid)
 
     async def __afinalize__(self):
         self._underlying_proc.terminate()

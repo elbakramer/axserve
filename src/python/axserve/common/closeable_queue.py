@@ -22,6 +22,7 @@ from queue import Queue
 from time import time
 from typing import Any
 from typing import TypeVar
+from typing import override
 
 from axserve.common.closeable import Closeable
 
@@ -41,7 +42,8 @@ class CloseableQueue(Queue[T], Closeable):
             raise RuntimeError(msg)
         self._closed = False
 
-    def put(
+    @override
+    def put(  # type: ignore
         self,
         item: T,
         *,
@@ -65,14 +67,15 @@ class CloseableQueue(Queue[T], Closeable):
                     endtime = time() + timeout
                     while self._qsize() >= self.maxsize:
                         remaining = endtime - time()
-                        if remaining <= 0.0:  # noqa: PLR2004
+                        if remaining <= 0.0:
                             raise Full
                         self.not_full.wait(remaining)
             self._put(item)
             self.unfinished_tasks += 1
             self.not_empty.notify()
 
-    def get(
+    @override
+    def get(  # type: ignore
         self,
         *,
         block: bool = True,
@@ -92,7 +95,7 @@ class CloseableQueue(Queue[T], Closeable):
                 endtime = time() + timeout
                 while not self._closed and not self._qsize():
                     remaining = endtime - time()
-                    if remaining <= 0.0:  # noqa: PLR2004
+                    if remaining <= 0.0:
                         raise Empty
                     self.not_empty.wait(remaining)
             if self._closed and not self._qsize():
@@ -116,9 +119,8 @@ class CloseableQueue(Queue[T], Closeable):
                 raise Closed
             if self.maxsize > 0:
                 if not block:
-                    if self._qsize() >= self.maxsize:
-                        if not immediate:
-                            raise Full
+                    if self._qsize() >= self.maxsize and not immediate:
+                        raise Full
                 elif timeout is None:
                     while self._qsize() >= self.maxsize:
                         if immediate:
@@ -131,7 +133,7 @@ class CloseableQueue(Queue[T], Closeable):
                     endtime = time() + timeout
                     while self._qsize() >= self.maxsize:
                         remaining = endtime - time()
-                        if remaining <= 0.0:  # noqa: PLR2004
+                        if remaining <= 0.0:
                             if immediate:
                                 break
                             raise Full

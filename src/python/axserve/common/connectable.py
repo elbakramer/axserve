@@ -17,13 +17,17 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import ParamSpec
 from typing import Protocol
 from typing import TypeVar
 
 from axserve.common.protocol import check_names_in_mro
+
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 P = ParamSpec("P")
@@ -35,15 +39,16 @@ D_co = TypeVar("D_co", covariant=True)
 class Connectable(Protocol[P, C_co, D_co]):
     @abstractmethod
     def connect(self, handler: Callable[P, Any]) -> C_co | None:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @abstractmethod
     def disconnect(self, handler: Callable[P, Any]) -> D_co | None:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @classmethod
-    def __subclasshook__(cls, __subclass: type) -> bool:
-        if cls is Connectable:
-            if check_names_in_mro(["connect", "disconnect"], __subclass):
-                return True
+    def __subclasshook__(cls, __subclass: type, /) -> bool:
+        if cls is Connectable and check_names_in_mro(
+            ["connect", "disconnect"], __subclass
+        ):
+            return True
         return super().__subclasshook__(__subclass)

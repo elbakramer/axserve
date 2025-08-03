@@ -21,9 +21,6 @@ import threading
 import typing
 
 from collections import defaultdict
-from collections.abc import Callable
-from collections.abc import Iterator
-from collections.abc import Mapping
 from threading import Condition
 from threading import Thread
 from typing import TYPE_CHECKING
@@ -36,15 +33,19 @@ from axserve.client.descriptor import AxServeEvent
 from axserve.client.descriptor import AxServeMember
 from axserve.client.descriptor import AxServeMethod
 from axserve.client.descriptor import AxServeProperty
-from axserve.common.acquireable import Acquireable
 from axserve.common.iterable_queue import IterableQueue
 from axserve.proto import active_pb2
 from axserve.proto.active_pb2_conversion import ValueFromVariant
-from axserve.proto.active_pb2_grpc import ActiveStub
 
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+    from collections.abc import Iterator
+    from collections.abc import Mapping
+
     from axserve.client.stub import AxServeObject
+    from axserve.common.acquireable import Acquireable
+    from axserve.proto.active_pb2_grpc import ActiveStub
 
 
 T = TypeVar("T")
@@ -231,7 +232,7 @@ class AxServeMembersManagerCache:
     ):
         self._stub = stub
         self._context_manager = context_manager
-        self._members_managers = {}
+        self._members_managers: dict[str, AxServeMembersManager] = {}
 
     def _get_members_manager(self, c: str, i: str) -> AxServeMembersManager:
         if c not in self._members_managers:

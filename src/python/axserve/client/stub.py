@@ -20,10 +20,8 @@ import platform
 import time
 import typing
 
-from collections.abc import Iterable
-from collections.abc import MutableMapping
 from threading import RLock
-from types import TracebackType
+from typing import TYPE_CHECKING
 from typing import ClassVar
 
 import grpc
@@ -38,11 +36,17 @@ from axserve.client.component import AxServeInstancesManager
 from axserve.client.component import AxServeMembersManager
 from axserve.client.component import AxServeMembersManagerCache
 from axserve.client.descriptor import AxServeMemberType
-from axserve.common.registry import CheckMachineFromCLSID
-from axserve.common.socket import FindFreePort
+from axserve.common.registry import check_machine_for_clsid
+from axserve.common.socket import find_free_port
 from axserve.proto import active_pb2
 from axserve.proto.active_pb2_grpc import ActiveStub
 from axserve.server.process import AxServeServerProcess
+
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from collections.abc import MutableMapping
+    from types import TracebackType
 
 
 class AxServeObjectInternals:
@@ -111,7 +115,7 @@ class AxServeClientStore:
         if machine not in self._clients:
             with self._clients_lock:
                 if machine not in self._clients:
-                    port = FindFreePort()
+                    port = find_free_port()
                     address = f"localhost:{port}"
                     process = AxServeServerProcess(address, machine=machine)
                     channel = grpc.insecure_channel(address)
@@ -211,10 +215,10 @@ class AxServeClient:
             (ax := o.__axserve__)
             and (instance := ax._instance)
             and self._instances_manager._has_instance(instance)
+            and not self._destroy_instance(instance)
         ):
-            if not self._destroy_instance(instance):
-                msg = "Failed to destroy the axserve object"
-                raise RuntimeError(msg)
+            msg = "Failed to destroy the axserve object"
+            raise RuntimeError(msg)
 
     def close(self, timeout: float | None = None) -> None:
         start_time = time.time()
@@ -284,7 +288,7 @@ class AxServeObject:
             msg = "Cannot determine CLSID"
             raise ValueError(msg)
         if not client:
-            machine = CheckMachineFromCLSID(clsid)
+            machine = check_machine_for_clsid(clsid)
             client = AxServeClient.instance(machine)
         self.__axserve__._clsid = clsid
         self.__axserve__._client = client
